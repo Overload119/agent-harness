@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+usage() {
+  printf 'Usage: %s [--overwrite]\n' "$0"
+}
+
+overwrite=false
+
+while (($# > 0)); do
+  case "$1" in
+    --overwrite)
+      overwrite=true
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'Unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+repo_root=$(cd "$script_dir/.." && pwd)
+source_dir="$repo_root/commands"
+target_dir="$HOME/.config/opencode/commands"
+
+if [[ ! -d "$source_dir" ]]; then
+  printf 'Source commands directory not found: %s\n' "$source_dir" >&2
+  exit 1
+fi
+
+mkdir -p "$target_dir"
+
+copied=0
+skipped=0
+
+while IFS= read -r source_file; do
+  relative_path=${source_file#"$source_dir/"}
+  target_file="$target_dir/$relative_path"
+
+  mkdir -p "$(dirname "$target_file")"
+
+  if [[ -e "$target_file" && "$overwrite" != true ]]; then
+    printf 'Skipping existing file: %s\n' "$relative_path"
+    skipped=$((skipped + 1))
+    continue
+  fi
+
+  cp "$source_file" "$target_file"
+  printf 'Installed: %s\n' "$relative_path"
+  copied=$((copied + 1))
+done < <(find "$source_dir" -type f)
+
+printf 'Done. Copied %d file(s)' "$copied"
+if [[ "$overwrite" == true ]]; then
+  printf ' with overwrite enabled'
+fi
+printf '.\n'
+
+if ((skipped > 0)); then
+  printf 'Skipped %d existing file(s). Re-run with --overwrite to replace them.\n' "$skipped"
+fi
