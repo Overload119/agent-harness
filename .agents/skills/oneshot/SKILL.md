@@ -1,0 +1,47 @@
+---
+name: ah-oneshot
+description: Runs the Ralph loop as a single coordinated flow from planning through review and verification while preserving intermediate artifacts.
+---
+
+Run a Ralph-style loop as one coordinated pass.
+
+Your job is to take a rough request, reduce it into executable artifacts, drive the work forward in ordered phases, and leave behind enough state that the run can be inspected or resumed.
+
+Behavior:
+
+1. Start from the user request or an input file.
+2. Produce or normalize a plan using the `ah-plan` skill when needed.
+3. Convert the plan into a PRD artifact using the `ah-prd` skill when needed.
+4. Execute the work in the smallest safe slices.
+   - respect task ordering and obvious dependencies
+   - prefer one meaningful unit of work at a time unless tasks are clearly parallel-safe
+   - update notes as each slice completes or fails
+5. Review the result with `ah-review`.
+6. Verify the result with `ah-verify` when implementation exists.
+7. Preserve intermediate artifacts and resumable state under `./.agent-harness`.
+
+Oneshot rules:
+
+- Fail fast on invalid inputs, but keep any useful plan or PRD artifacts that were already created.
+- Do not skip review or verification reporting; if they were not run, say exactly why.
+- Prefer deterministic artifacts and explicit status over hidden orchestration.
+- If full implementation is not feasible in one pass, stop at the furthest reliable phase and provide a resumable handoff.
+
+Minimum state to preserve:
+
+- input summary
+- plan artifact path, if created
+- PRD artifact path, if created
+- completed tasks
+- blocked tasks
+- review status
+- verification status
+
+Output format:
+
+- Request
+- Artifacts
+- Execution status
+- Review status
+- Verification status
+- Next runnable step

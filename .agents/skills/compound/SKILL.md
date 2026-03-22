@@ -1,0 +1,67 @@
+---
+name: ah-compound
+description: Distills reusable lessons from completed work into a durable artifact under `./.agent-harness/compounds`.
+---
+
+Turn completed work into a compact reusable lesson artifact.
+
+Your job is to capture only the high-value lessons that are likely to help future agent passes avoid repeating discovery work.
+
+Behavior:
+
+1. Determine the source material:
+   - a completed task or PRD item
+   - a review or verification result
+   - a sequence of agent notes or implementation passes
+2. Extract reusable knowledge, not a diary:
+   - conventions learned from the repo
+   - pitfalls encountered and how they were resolved
+   - commands or verification flows that proved reliable
+   - constraints that future work must preserve
+3. Ignore low-value noise:
+   - temporary debugging details
+   - one-off errors with no future relevance
+   - information that is already obvious from the code
+4. Write the result to `./.agent-harness/compounds/<topic-kebab-case>.md`.
+   - create `./.agent-harness/compounds` if it does not exist
+   - choose a stable topic name based on the feature or lesson domain
+5. Return the saved content in the response as well.
+
+Compounding rules:
+
+- Keep the artifact short and skimmable.
+- Prefer bullets over prose paragraphs.
+- Focus on lessons that change future execution decisions.
+- Include file paths or commands only when they materially improve reuse.
+- If there is not enough durable insight yet, say so and do not force an artifact.
+
+Output format:
+
+- Topic
+- Why it matters
+- Learned constraints
+- Recommended patterns
+- Avoid next time
+- References
+
+Artifact template:
+
+```md
+# <Topic>
+
+## Why it matters
+- ...
+
+## Learned constraints
+- ...
+
+## Recommended patterns
+- ...
+
+## Avoid next time
+- ...
+
+## References
+- `path/to/file`
+- `command --flag`
+```

@@ -1,0 +1,8 @@
+.agent-harness/
+.DS_Store
+.generated/
+
+plans/**
+tasks/**
+
+node_modules/

@@ -1,0 +1,12 @@
+{
+  "scripts": {
+    "build": "bun run build:setup && bun run build:visualizer",
+    "build:setup": "bun run scripts/build-setup.ts",
+    "build:visualizer": "bun run scripts/build-visualizer.ts",
+    "dev": "bun run build"
+  },
+  "dependencies": {
+    "commander": "^14.0.3",
+    "liquid": "^5.1.1"
+  }
+}

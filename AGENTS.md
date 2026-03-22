@@ -1,0 +1,8 @@
+- Never modify the `.agents/skills` since those are derived from when `bin/setup` runs. If the user is referencing changes to particular skills, they probably mean modifying them in `skills/`. The user may refer to these as "in the harness" in some cases.
+- Treat `skills/` as the source of truth for shipped skills. `bin/setup` copies those files into `.agents/skills/` and tracks managed installs in `.agents/agent-harness-install.json`.
+- Shipped skill source files in `skills/` are templated as `SKILL.md.liquid`; do not assume a plain `SKILL.md` exists there.
+- If you add a new shipped skill while updating a skill or command, create it under `skills/` and prefix the directory name with `ah-`.
+- When working on setup or skill-install behavior, preserve the naming convention where source directories like `skills/ah-plan/` install into `.agents/skills/plan/`.
+- This repo uses Bun for scripts. 
+- Never create Python files in this repo for quick automation or helper scripts; prefer Bun/Typescript instead.
+- If the user wants to preview installer effects, prefer `bin/setup --dry`; use `bin/setup --overwrite` only when they explicitly want to apply managed updates.

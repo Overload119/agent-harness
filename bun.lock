@@ -1,0 +1,19 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "dependencies": {
+        "commander": "^14.0.3",
+        "liquid": "^5.1.1",
+      },
+    },
+  },
+  "packages": {
+    "commander": ["commander@14.0.3", "", {}, "sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw=="],
+
+    "liquid": ["liquid@5.1.1", "", { "dependencies": { "strftime": "~0.9.2" } }, "sha512-GbZhB1kgcDR1NE1FXEGtcK1EjMUXe2+ENgRecjs5V3ksZUjzZdC3leff/FoL4E02/9Y9tdoHY1zJ2QMwb5kuuw=="],
+
+    "strftime": ["strftime@0.9.2", "", {}, "sha512-wu4xPBupxILrTO8TPaQRSTG7UOEWPhk232QXK3cdTejPeTWsXRpIMkgGF1JKnPY4OHNKYWUa//k0crofghxAFA=="],
+  }
+}

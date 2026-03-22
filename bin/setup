@@ -1,69 +1,4827 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bun
 
-set -euo pipefail
+// @bun
+var __create = Object.create;
+var __getProtoOf = Object.getPrototypeOf;
+var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+function __accessProp(key) {
+  return this[key];
+}
+var __toESMCache_node;
+var __toESMCache_esm;
+var __toESM = (mod, isNodeMode, target) => {
+  var canCache = mod != null && typeof mod === "object";
+  if (canCache) {
+    var cache = isNodeMode ? __toESMCache_node ??= new WeakMap : __toESMCache_esm ??= new WeakMap;
+    var cached = cache.get(mod);
+    if (cached)
+      return cached;
+  }
+  target = mod != null ? __create(__getProtoOf(mod)) : {};
+  const to = isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target;
+  for (let key of __getOwnPropNames(mod))
+    if (!__hasOwnProp.call(to, key))
+      __defProp(to, key, {
+        get: __accessProp.bind(mod, key),
+        enumerable: true
+      });
+  if (canCache)
+    cache.set(mod, to);
+  return to;
+};
+var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
+var __require = import.meta.require;
 
-usage() {
-  printf 'Usage: %s [--overwrite]\n' "$0"
+// node_modules/commander/lib/error.js
+var require_error = __commonJS((exports) => {
+  class CommanderError extends Error {
+    constructor(exitCode, code, message) {
+      super(message);
+      Error.captureStackTrace(this, this.constructor);
+      this.name = this.constructor.name;
+      this.code = code;
+      this.exitCode = exitCode;
+      this.nestedError = undefined;
+    }
+  }
+
+  class InvalidArgumentError extends CommanderError {
+    constructor(message) {
+      super(1, "commander.invalidArgument", message);
+      Error.captureStackTrace(this, this.constructor);
+      this.name = this.constructor.name;
+    }
+  }
+  exports.CommanderError = CommanderError;
+  exports.InvalidArgumentError = InvalidArgumentError;
+});
+
+// node_modules/commander/lib/argument.js
+var require_argument = __commonJS((exports) => {
+  var { InvalidArgumentError } = require_error();
+
+  class Argument {
+    constructor(name, description) {
+      this.description = description || "";
+      this.variadic = false;
+      this.parseArg = undefined;
+      this.defaultValue = undefined;
+      this.defaultValueDescription = undefined;
+      this.argChoices = undefined;
+      switch (name[0]) {
+        case "<":
+          this.required = true;
+          this._name = name.slice(1, -1);
+          break;
+        case "[":
+          this.required = false;
+          this._name = name.slice(1, -1);
+          break;
+        default:
+          this.required = true;
+          this._name = name;
+          break;
+      }
+      if (this._name.endsWith("...")) {
+        this.variadic = true;
+        this._name = this._name.slice(0, -3);
+      }
+    }
+    name() {
+      return this._name;
+    }
+    _collectValue(value, previous) {
+      if (previous === this.defaultValue || !Array.isArray(previous)) {
+        return [value];
+      }
+      previous.push(value);
+      return previous;
+    }
+    default(value, description) {
+      this.defaultValue = value;
+      this.defaultValueDescription = description;
+      return this;
+    }
+    argParser(fn) {
+      this.parseArg = fn;
+      return this;
+    }
+    choices(values) {
+      this.argChoices = values.slice();
+      this.parseArg = (arg, previous) => {
+        if (!this.argChoices.includes(arg)) {
+          throw new InvalidArgumentError(`Allowed choices are ${this.argChoices.join(", ")}.`);
+        }
+        if (this.variadic) {
+          return this._collectValue(arg, previous);
+        }
+        return arg;
+      };
+      return this;
+    }
+    argRequired() {
+      this.required = true;
+      return this;
+    }
+    argOptional() {
+      this.required = false;
+      return this;
+    }
+  }
+  function humanReadableArgName(arg) {
+    const nameOutput = arg.name() + (arg.variadic === true ? "..." : "");
+    return arg.required ? "<" + nameOutput + ">" : "[" + nameOutput + "]";
+  }
+  exports.Argument = Argument;
+  exports.humanReadableArgName = humanReadableArgName;
+});
+
+// node_modules/commander/lib/help.js
+var require_help = __commonJS((exports) => {
+  var { humanReadableArgName } = require_argument();
+
+  class Help {
+    constructor() {
+      this.helpWidth = undefined;
+      this.minWidthToWrap = 40;
+      this.sortSubcommands = false;
+      this.sortOptions = false;
+      this.showGlobalOptions = false;
+    }
+    prepareContext(contextOptions) {
+      this.helpWidth = this.helpWidth ?? contextOptions.helpWidth ?? 80;
+    }
+    visibleCommands(cmd) {
+      const visibleCommands = cmd.commands.filter((cmd2) => !cmd2._hidden);
+      const helpCommand = cmd._getHelpCommand();
+      if (helpCommand && !helpCommand._hidden) {
+        visibleCommands.push(helpCommand);
+      }
+      if (this.sortSubcommands) {
+        visibleCommands.sort((a, b) => {
+          return a.name().localeCompare(b.name());
+        });
+      }
+      return visibleCommands;
+    }
+    compareOptions(a, b) {
+      const getSortKey = (option) => {
+        return option.short ? option.short.replace(/^-/, "") : option.long.replace(/^--/, "");
+      };
+      return getSortKey(a).localeCompare(getSortKey(b));
+    }
+    visibleOptions(cmd) {
+      const visibleOptions = cmd.options.filter((option) => !option.hidden);
+      const helpOption = cmd._getHelpOption();
+      if (helpOption && !helpOption.hidden) {
+        const removeShort = helpOption.short && cmd._findOption(helpOption.short);
+        const removeLong = helpOption.long && cmd._findOption(helpOption.long);
+        if (!removeShort && !removeLong) {
+          visibleOptions.push(helpOption);
+        } else if (helpOption.long && !removeLong) {
+          visibleOptions.push(cmd.createOption(helpOption.long, helpOption.description));
+        } else if (helpOption.short && !removeShort) {
+          visibleOptions.push(cmd.createOption(helpOption.short, helpOption.description));
+        }
+      }
+      if (this.sortOptions) {
+        visibleOptions.sort(this.compareOptions);
+      }
+      return visibleOptions;
+    }
+    visibleGlobalOptions(cmd) {
+      if (!this.showGlobalOptions)
+        return [];
+      const globalOptions = [];
+      for (let ancestorCmd = cmd.parent;ancestorCmd; ancestorCmd = ancestorCmd.parent) {
+        const visibleOptions = ancestorCmd.options.filter((option) => !option.hidden);
+        globalOptions.push(...visibleOptions);
+      }
+      if (this.sortOptions) {
+        globalOptions.sort(this.compareOptions);
+      }
+      return globalOptions;
+    }
+    visibleArguments(cmd) {
+      if (cmd._argsDescription) {
+        cmd.registeredArguments.forEach((argument) => {
+          argument.description = argument.description || cmd._argsDescription[argument.name()] || "";
+        });
+      }
+      if (cmd.registeredArguments.find((argument) => argument.description)) {
+        return cmd.registeredArguments;
+      }
+      return [];
+    }
+    subcommandTerm(cmd) {
+      const args = cmd.registeredArguments.map((arg) => humanReadableArgName(arg)).join(" ");
+      return cmd._name + (cmd._aliases[0] ? "|" + cmd._aliases[0] : "") + (cmd.options.length ? " [options]" : "") + (args ? " " + args : "");
+    }
+    optionTerm(option) {
+      return option.flags;
+    }
+    argumentTerm(argument) {
+      return argument.name();
+    }
+    longestSubcommandTermLength(cmd, helper) {
+      return helper.visibleCommands(cmd).reduce((max, command) => {
+        return Math.max(max, this.displayWidth(helper.styleSubcommandTerm(helper.subcommandTerm(command))));
+      }, 0);
+    }
+    longestOptionTermLength(cmd, helper) {
+      return helper.visibleOptions(cmd).reduce((max, option) => {
+        return Math.max(max, this.displayWidth(helper.styleOptionTerm(helper.optionTerm(option))));
+      }, 0);
+    }
+    longestGlobalOptionTermLength(cmd, helper) {
+      return helper.visibleGlobalOptions(cmd).reduce((max, option) => {
+        return Math.max(max, this.displayWidth(helper.styleOptionTerm(helper.optionTerm(option))));
+      }, 0);
+    }
+    longestArgumentTermLength(cmd, helper) {
+      return helper.visibleArguments(cmd).reduce((max, argument) => {
+        return Math.max(max, this.displayWidth(helper.styleArgumentTerm(helper.argumentTerm(argument))));
+      }, 0);
+    }
+    commandUsage(cmd) {
+      let cmdName = cmd._name;
+      if (cmd._aliases[0]) {
+        cmdName = cmdName + "|" + cmd._aliases[0];
+      }
+      let ancestorCmdNames = "";
+      for (let ancestorCmd = cmd.parent;ancestorCmd; ancestorCmd = ancestorCmd.parent) {
+        ancestorCmdNames = ancestorCmd.name() + " " + ancestorCmdNames;
+      }
+      return ancestorCmdNames + cmdName + " " + cmd.usage();
+    }
+    commandDescription(cmd) {
+      return cmd.description();
+    }
+    subcommandDescription(cmd) {
+      return cmd.summary() || cmd.description();
+    }
+    optionDescription(option) {
+      const extraInfo = [];
+      if (option.argChoices) {
+        extraInfo.push(`choices: ${option.argChoices.map((choice) => JSON.stringify(choice)).join(", ")}`);
+      }
+      if (option.defaultValue !== undefined) {
+        const showDefault = option.required || option.optional || option.isBoolean() && typeof option.defaultValue === "boolean";
+        if (showDefault) {
+          extraInfo.push(`default: ${option.defaultValueDescription || JSON.stringify(option.defaultValue)}`);
+        }
+      }
+      if (option.presetArg !== undefined && option.optional) {
+        extraInfo.push(`preset: ${JSON.stringify(option.presetArg)}`);
+      }
+      if (option.envVar !== undefined) {
+        extraInfo.push(`env: ${option.envVar}`);
+      }
+      if (extraInfo.length > 0) {
+        const extraDescription = `(${extraInfo.join(", ")})`;
+        if (option.description) {
+          return `${option.description} ${extraDescription}`;
+        }
+        return extraDescription;
+      }
+      return option.description;
+    }
+    argumentDescription(argument) {
+      const extraInfo = [];
+      if (argument.argChoices) {
+        extraInfo.push(`choices: ${argument.argChoices.map((choice) => JSON.stringify(choice)).join(", ")}`);
+      }
+      if (argument.defaultValue !== undefined) {
+        extraInfo.push(`default: ${argument.defaultValueDescription || JSON.stringify(argument.defaultValue)}`);
+      }
+      if (extraInfo.length > 0) {
+        const extraDescription = `(${extraInfo.join(", ")})`;
+        if (argument.description) {
+          return `${argument.description} ${extraDescription}`;
+        }
+        return extraDescription;
+      }
+      return argument.description;
+    }
+    formatItemList(heading, items, helper) {
+      if (items.length === 0)
+        return [];
+      return [helper.styleTitle(heading), ...items, ""];
+    }
+    groupItems(unsortedItems, visibleItems, getGroup) {
+      const result = new Map;
+      unsortedItems.forEach((item) => {
+        const group = getGroup(item);
+        if (!result.has(group))
+          result.set(group, []);
+      });
+      visibleItems.forEach((item) => {
+        const group = getGroup(item);
+        if (!result.has(group)) {
+          result.set(group, []);
+        }
+        result.get(group).push(item);
+      });
+      return result;
+    }
+    formatHelp(cmd, helper) {
+      const termWidth = helper.padWidth(cmd, helper);
+      const helpWidth = helper.helpWidth ?? 80;
+      function callFormatItem(term, description) {
+        return helper.formatItem(term, termWidth, description, helper);
+      }
+      let output = [
+        `${helper.styleTitle("Usage:")} ${helper.styleUsage(helper.commandUsage(cmd))}`,
+        ""
+      ];
+      const commandDescription = helper.commandDescription(cmd);
+      if (commandDescription.length > 0) {
+        output = output.concat([
+          helper.boxWrap(helper.styleCommandDescription(commandDescription), helpWidth),
+          ""
+        ]);
+      }
+      const argumentList = helper.visibleArguments(cmd).map((argument) => {
+        return callFormatItem(helper.styleArgumentTerm(helper.argumentTerm(argument)), helper.styleArgumentDescription(helper.argumentDescription(argument)));
+      });
+      output = output.concat(this.formatItemList("Arguments:", argumentList, helper));
+      const optionGroups = this.groupItems(cmd.options, helper.visibleOptions(cmd), (option) => option.helpGroupHeading ?? "Options:");
+      optionGroups.forEach((options, group) => {
+        const optionList = options.map((option) => {
+          return callFormatItem(helper.styleOptionTerm(helper.optionTerm(option)), helper.styleOptionDescription(helper.optionDescription(option)));
+        });
+        output = output.concat(this.formatItemList(group, optionList, helper));
+      });
+      if (helper.showGlobalOptions) {
+        const globalOptionList = helper.visibleGlobalOptions(cmd).map((option) => {
+          return callFormatItem(helper.styleOptionTerm(helper.optionTerm(option)), helper.styleOptionDescription(helper.optionDescription(option)));
+        });
+        output = output.concat(this.formatItemList("Global Options:", globalOptionList, helper));
+      }
+      const commandGroups = this.groupItems(cmd.commands, helper.visibleCommands(cmd), (sub) => sub.helpGroup() || "Commands:");
+      commandGroups.forEach((commands, group) => {
+        const commandList = commands.map((sub) => {
+          return callFormatItem(helper.styleSubcommandTerm(helper.subcommandTerm(sub)), helper.styleSubcommandDescription(helper.subcommandDescription(sub)));
+        });
+        output = output.concat(this.formatItemList(group, commandList, helper));
+      });
+      return output.join(`
+`);
+    }
+    displayWidth(str) {
+      return stripColor(str).length;
+    }
+    styleTitle(str) {
+      return str;
+    }
+    styleUsage(str) {
+      return str.split(" ").map((word) => {
+        if (word === "[options]")
+          return this.styleOptionText(word);
+        if (word === "[command]")
+          return this.styleSubcommandText(word);
+        if (word[0] === "[" || word[0] === "<")
+          return this.styleArgumentText(word);
+        return this.styleCommandText(word);
+      }).join(" ");
+    }
+    styleCommandDescription(str) {
+      return this.styleDescriptionText(str);
+    }
+    styleOptionDescription(str) {
+      return this.styleDescriptionText(str);
+    }
+    styleSubcommandDescription(str) {
+      return this.styleDescriptionText(str);
+    }
+    styleArgumentDescription(str) {
+      return this.styleDescriptionText(str);
+    }
+    styleDescriptionText(str) {
+      return str;
+    }
+    styleOptionTerm(str) {
+      return this.styleOptionText(str);
+    }
+    styleSubcommandTerm(str) {
+      return str.split(" ").map((word) => {
+        if (word === "[options]")
+          return this.styleOptionText(word);
+        if (word[0] === "[" || word[0] === "<")
+          return this.styleArgumentText(word);
+        return this.styleSubcommandText(word);
+      }).join(" ");
+    }
+    styleArgumentTerm(str) {
+      return this.styleArgumentText(str);
+    }
+    styleOptionText(str) {
+      return str;
+    }
+    styleArgumentText(str) {
+      return str;
+    }
+    styleSubcommandText(str) {
+      return str;
+    }
+    styleCommandText(str) {
+      return str;
+    }
+    padWidth(cmd, helper) {
+      return Math.max(helper.longestOptionTermLength(cmd, helper), helper.longestGlobalOptionTermLength(cmd, helper), helper.longestSubcommandTermLength(cmd, helper), helper.longestArgumentTermLength(cmd, helper));
+    }
+    preformatted(str) {
+      return /\n[^\S\r\n]/.test(str);
+    }
+    formatItem(term, termWidth, description, helper) {
+      const itemIndent = 2;
+      const itemIndentStr = " ".repeat(itemIndent);
+      if (!description)
+        return itemIndentStr + term;
+      const paddedTerm = term.padEnd(termWidth + term.length - helper.displayWidth(term));
+      const spacerWidth = 2;
+      const helpWidth = this.helpWidth ?? 80;
+      const remainingWidth = helpWidth - termWidth - spacerWidth - itemIndent;
+      let formattedDescription;
+      if (remainingWidth < this.minWidthToWrap || helper.preformatted(description)) {
+        formattedDescription = description;
+      } else {
+        const wrappedDescription = helper.boxWrap(description, remainingWidth);
+        formattedDescription = wrappedDescription.replace(/\n/g, `
+` + " ".repeat(termWidth + spacerWidth));
+      }
+      return itemIndentStr + paddedTerm + " ".repeat(spacerWidth) + formattedDescription.replace(/\n/g, `
+${itemIndentStr}`);
+    }
+    boxWrap(str, width) {
+      if (width < this.minWidthToWrap)
+        return str;
+      const rawLines = str.split(/\r\n|\n/);
+      const chunkPattern = /[\s]*[^\s]+/g;
+      const wrappedLines = [];
+      rawLines.forEach((line) => {
+        const chunks = line.match(chunkPattern);
+        if (chunks === null) {
+          wrappedLines.push("");
+          return;
+        }
+        let sumChunks = [chunks.shift()];
+        let sumWidth = this.displayWidth(sumChunks[0]);
+        chunks.forEach((chunk) => {
+          const visibleWidth = this.displayWidth(chunk);
+          if (sumWidth + visibleWidth <= width) {
+            sumChunks.push(chunk);
+            sumWidth += visibleWidth;
+            return;
+          }
+          wrappedLines.push(sumChunks.join(""));
+          const nextChunk = chunk.trimStart();
+          sumChunks = [nextChunk];
+          sumWidth = this.displayWidth(nextChunk);
+        });
+        wrappedLines.push(sumChunks.join(""));
+      });
+      return wrappedLines.join(`
+`);
+    }
+  }
+  function stripColor(str) {
+    const sgrPattern = /\x1b\[\d*(;\d*)*m/g;
+    return str.replace(sgrPattern, "");
+  }
+  exports.Help = Help;
+  exports.stripColor = stripColor;
+});
+
+// node_modules/commander/lib/option.js
+var require_option = __commonJS((exports) => {
+  var { InvalidArgumentError } = require_error();
+
+  class Option {
+    constructor(flags, description) {
+      this.flags = flags;
+      this.description = description || "";
+      this.required = flags.includes("<");
+      this.optional = flags.includes("[");
+      this.variadic = /\w\.\.\.[>\]]$/.test(flags);
+      this.mandatory = false;
+      const optionFlags = splitOptionFlags(flags);
+      this.short = optionFlags.shortFlag;
+      this.long = optionFlags.longFlag;
+      this.negate = false;
+      if (this.long) {
+        this.negate = this.long.startsWith("--no-");
+      }
+      this.defaultValue = undefined;
+      this.defaultValueDescription = undefined;
+      this.presetArg = undefined;
+      this.envVar = undefined;
+      this.parseArg = undefined;
+      this.hidden = false;
+      this.argChoices = undefined;
+      this.conflictsWith = [];
+      this.implied = undefined;
+      this.helpGroupHeading = undefined;
+    }
+    default(value, description) {
+      this.defaultValue = value;
+      this.defaultValueDescription = description;
+      return this;
+    }
+    preset(arg) {
+      this.presetArg = arg;
+      return this;
+    }
+    conflicts(names) {
+      this.conflictsWith = this.conflictsWith.concat(names);
+      return this;
+    }
+    implies(impliedOptionValues) {
+      let newImplied = impliedOptionValues;
+      if (typeof impliedOptionValues === "string") {
+        newImplied = { [impliedOptionValues]: true };
+      }
+      this.implied = Object.assign(this.implied || {}, newImplied);
+      return this;
+    }
+    env(name) {
+      this.envVar = name;
+      return this;
+    }
+    argParser(fn) {
+      this.parseArg = fn;
+      return this;
+    }
+    makeOptionMandatory(mandatory = true) {
+      this.mandatory = !!mandatory;
+      return this;
+    }
+    hideHelp(hide = true) {
+      this.hidden = !!hide;
+      return this;
+    }
+    _collectValue(value, previous) {
+      if (previous === this.defaultValue || !Array.isArray(previous)) {
+        return [value];
+      }
+      previous.push(value);
+      return previous;
+    }
+    choices(values) {
+      this.argChoices = values.slice();
+      this.parseArg = (arg, previous) => {
+        if (!this.argChoices.includes(arg)) {
+          throw new InvalidArgumentError(`Allowed choices are ${this.argChoices.join(", ")}.`);
+        }
+        if (this.variadic) {
+          return this._collectValue(arg, previous);
+        }
+        return arg;
+      };
+      return this;
+    }
+    name() {
+      if (this.long) {
+        return this.long.replace(/^--/, "");
+      }
+      return this.short.replace(/^-/, "");
+    }
+    attributeName() {
+      if (this.negate) {
+        return camelcase(this.name().replace(/^no-/, ""));
+      }
+      return camelcase(this.name());
+    }
+    helpGroup(heading) {
+      this.helpGroupHeading = heading;
+      return this;
+    }
+    is(arg) {
+      return this.short === arg || this.long === arg;
+    }
+    isBoolean() {
+      return !this.required && !this.optional && !this.negate;
+    }
+  }
+
+  class DualOptions {
+    constructor(options) {
+      this.positiveOptions = new Map;
+      this.negativeOptions = new Map;
+      this.dualOptions = new Set;
+      options.forEach((option) => {
+        if (option.negate) {
+          this.negativeOptions.set(option.attributeName(), option);
+        } else {
+          this.positiveOptions.set(option.attributeName(), option);
+        }
+      });
+      this.negativeOptions.forEach((value, key) => {
+        if (this.positiveOptions.has(key)) {
+          this.dualOptions.add(key);
+        }
+      });
+    }
+    valueFromOption(value, option) {
+      const optionKey = option.attributeName();
+      if (!this.dualOptions.has(optionKey))
+        return true;
+      const preset = this.negativeOptions.get(optionKey).presetArg;
+      const negativeValue = preset !== undefined ? preset : false;
+      return option.negate === (negativeValue === value);
+    }
+  }
+  function camelcase(str) {
+    return str.split("-").reduce((str2, word) => {
+      return str2 + word[0].toUpperCase() + word.slice(1);
+    });
+  }
+  function splitOptionFlags(flags) {
+    let shortFlag;
+    let longFlag;
+    const shortFlagExp = /^-[^-]$/;
+    const longFlagExp = /^--[^-]/;
+    const flagParts = flags.split(/[ |,]+/).concat("guard");
+    if (shortFlagExp.test(flagParts[0]))
+      shortFlag = flagParts.shift();
+    if (longFlagExp.test(flagParts[0]))
+      longFlag = flagParts.shift();
+    if (!shortFlag && shortFlagExp.test(flagParts[0]))
+      shortFlag = flagParts.shift();
+    if (!shortFlag && longFlagExp.test(flagParts[0])) {
+      shortFlag = longFlag;
+      longFlag = flagParts.shift();
+    }
+    if (flagParts[0].startsWith("-")) {
+      const unsupportedFlag = flagParts[0];
+      const baseError = `option creation failed due to '${unsupportedFlag}' in option flags '${flags}'`;
+      if (/^-[^-][^-]/.test(unsupportedFlag))
+        throw new Error(`${baseError}
+- a short flag is a single dash and a single character
+  - either use a single dash and a single character (for a short flag)
+  - or use a double dash for a long option (and can have two, like '--ws, --workspace')`);
+      if (shortFlagExp.test(unsupportedFlag))
+        throw new Error(`${baseError}
+- too many short flags`);
+      if (longFlagExp.test(unsupportedFlag))
+        throw new Error(`${baseError}
+- too many long flags`);
+      throw new Error(`${baseError}
+- unrecognised flag format`);
+    }
+    if (shortFlag === undefined && longFlag === undefined)
+      throw new Error(`option creation failed due to no flags found in '${flags}'.`);
+    return { shortFlag, longFlag };
+  }
+  exports.Option = Option;
+  exports.DualOptions = DualOptions;
+});
+
+// node_modules/commander/lib/suggestSimilar.js
+var require_suggestSimilar = __commonJS((exports) => {
+  var maxDistance = 3;
+  function editDistance(a, b) {
+    if (Math.abs(a.length - b.length) > maxDistance)
+      return Math.max(a.length, b.length);
+    const d = [];
+    for (let i = 0;i <= a.length; i++) {
+      d[i] = [i];
+    }
+    for (let j = 0;j <= b.length; j++) {
+      d[0][j] = j;
+    }
+    for (let j = 1;j <= b.length; j++) {
+      for (let i = 1;i <= a.length; i++) {
+        let cost = 1;
+        if (a[i - 1] === b[j - 1]) {
+          cost = 0;
+        } else {
+          cost = 1;
+        }
+        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+          d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+        }
+      }
+    }
+    return d[a.length][b.length];
+  }
+  function suggestSimilar(word, candidates) {
+    if (!candidates || candidates.length === 0)
+      return "";
+    candidates = Array.from(new Set(candidates));
+    const searchingOptions = word.startsWith("--");
+    if (searchingOptions) {
+      word = word.slice(2);
+      candidates = candidates.map((candidate) => candidate.slice(2));
+    }
+    let similar = [];
+    let bestDistance = maxDistance;
+    const minSimilarity = 0.4;
+    candidates.forEach((candidate) => {
+      if (candidate.length <= 1)
+        return;
+      const distance = editDistance(word, candidate);
+      const length = Math.max(word.length, candidate.length);
+      const similarity = (length - distance) / length;
+      if (similarity > minSimilarity) {
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          similar = [candidate];
+        } else if (distance === bestDistance) {
+          similar.push(candidate);
+        }
+      }
+    });
+    similar.sort((a, b) => a.localeCompare(b));
+    if (searchingOptions) {
+      similar = similar.map((candidate) => `--${candidate}`);
+    }
+    if (similar.length > 1) {
+      return `
+(Did you mean one of ${similar.join(", ")}?)`;
+    }
+    if (similar.length === 1) {
+      return `
+(Did you mean ${similar[0]}?)`;
+    }
+    return "";
+  }
+  exports.suggestSimilar = suggestSimilar;
+});
+
+// node_modules/commander/lib/command.js
+var require_command = __commonJS((exports) => {
+  var EventEmitter = __require("events").EventEmitter;
+  var childProcess = __require("child_process");
+  var path = __require("path");
+  var fs = __require("fs");
+  var process = __require("process");
+  var { Argument, humanReadableArgName } = require_argument();
+  var { CommanderError } = require_error();
+  var { Help, stripColor } = require_help();
+  var { Option, DualOptions } = require_option();
+  var { suggestSimilar } = require_suggestSimilar();
+
+  class Command extends EventEmitter {
+    constructor(name) {
+      super();
+      this.commands = [];
+      this.options = [];
+      this.parent = null;
+      this._allowUnknownOption = false;
+      this._allowExcessArguments = false;
+      this.registeredArguments = [];
+      this._args = this.registeredArguments;
+      this.args = [];
+      this.rawArgs = [];
+      this.processedArgs = [];
+      this._scriptPath = null;
+      this._name = name || "";
+      this._optionValues = {};
+      this._optionValueSources = {};
+      this._storeOptionsAsProperties = false;
+      this._actionHandler = null;
+      this._executableHandler = false;
+      this._executableFile = null;
+      this._executableDir = null;
+      this._defaultCommandName = null;
+      this._exitCallback = null;
+      this._aliases = [];
+      this._combineFlagAndOptionalValue = true;
+      this._description = "";
+      this._summary = "";
+      this._argsDescription = undefined;
+      this._enablePositionalOptions = false;
+      this._passThroughOptions = false;
+      this._lifeCycleHooks = {};
+      this._showHelpAfterError = false;
+      this._showSuggestionAfterError = true;
+      this._savedState = null;
+      this._outputConfiguration = {
+        writeOut: (str) => process.stdout.write(str),
+        writeErr: (str) => process.stderr.write(str),
+        outputError: (str, write) => write(str),
+        getOutHelpWidth: () => process.stdout.isTTY ? process.stdout.columns : undefined,
+        getErrHelpWidth: () => process.stderr.isTTY ? process.stderr.columns : undefined,
+        getOutHasColors: () => useColor() ?? (process.stdout.isTTY && process.stdout.hasColors?.()),
+        getErrHasColors: () => useColor() ?? (process.stderr.isTTY && process.stderr.hasColors?.()),
+        stripColor: (str) => stripColor(str)
+      };
+      this._hidden = false;
+      this._helpOption = undefined;
+      this._addImplicitHelpCommand = undefined;
+      this._helpCommand = undefined;
+      this._helpConfiguration = {};
+      this._helpGroupHeading = undefined;
+      this._defaultCommandGroup = undefined;
+      this._defaultOptionGroup = undefined;
+    }
+    copyInheritedSettings(sourceCommand) {
+      this._outputConfiguration = sourceCommand._outputConfiguration;
+      this._helpOption = sourceCommand._helpOption;
+      this._helpCommand = sourceCommand._helpCommand;
+      this._helpConfiguration = sourceCommand._helpConfiguration;
+      this._exitCallback = sourceCommand._exitCallback;
+      this._storeOptionsAsProperties = sourceCommand._storeOptionsAsProperties;
+      this._combineFlagAndOptionalValue = sourceCommand._combineFlagAndOptionalValue;
+      this._allowExcessArguments = sourceCommand._allowExcessArguments;
+      this._enablePositionalOptions = sourceCommand._enablePositionalOptions;
+      this._showHelpAfterError = sourceCommand._showHelpAfterError;
+      this._showSuggestionAfterError = sourceCommand._showSuggestionAfterError;
+      return this;
+    }
+    _getCommandAndAncestors() {
+      const result = [];
+      for (let command = this;command; command = command.parent) {
+        result.push(command);
+      }
+      return result;
+    }
+    command(nameAndArgs, actionOptsOrExecDesc, execOpts) {
+      let desc = actionOptsOrExecDesc;
+      let opts = execOpts;
+      if (typeof desc === "object" && desc !== null) {
+        opts = desc;
+        desc = null;
+      }
+      opts = opts || {};
+      const [, name, args] = nameAndArgs.match(/([^ ]+) *(.*)/);
+      const cmd = this.createCommand(name);
+      if (desc) {
+        cmd.description(desc);
+        cmd._executableHandler = true;
+      }
+      if (opts.isDefault)
+        this._defaultCommandName = cmd._name;
+      cmd._hidden = !!(opts.noHelp || opts.hidden);
+      cmd._executableFile = opts.executableFile || null;
+      if (args)
+        cmd.arguments(args);
+      this._registerCommand(cmd);
+      cmd.parent = this;
+      cmd.copyInheritedSettings(this);
+      if (desc)
+        return this;
+      return cmd;
+    }
+    createCommand(name) {
+      return new Command(name);
+    }
+    createHelp() {
+      return Object.assign(new Help, this.configureHelp());
+    }
+    configureHelp(configuration) {
+      if (configuration === undefined)
+        return this._helpConfiguration;
+      this._helpConfiguration = configuration;
+      return this;
+    }
+    configureOutput(configuration) {
+      if (configuration === undefined)
+        return this._outputConfiguration;
+      this._outputConfiguration = {
+        ...this._outputConfiguration,
+        ...configuration
+      };
+      return this;
+    }
+    showHelpAfterError(displayHelp = true) {
+      if (typeof displayHelp !== "string")
+        displayHelp = !!displayHelp;
+      this._showHelpAfterError = displayHelp;
+      return this;
+    }
+    showSuggestionAfterError(displaySuggestion = true) {
+      this._showSuggestionAfterError = !!displaySuggestion;
+      return this;
+    }
+    addCommand(cmd, opts) {
+      if (!cmd._name) {
+        throw new Error(`Command passed to .addCommand() must have a name
+- specify the name in Command constructor or using .name()`);
+      }
+      opts = opts || {};
+      if (opts.isDefault)
+        this._defaultCommandName = cmd._name;
+      if (opts.noHelp || opts.hidden)
+        cmd._hidden = true;
+      this._registerCommand(cmd);
+      cmd.parent = this;
+      cmd._checkForBrokenPassThrough();
+      return this;
+    }
+    createArgument(name, description) {
+      return new Argument(name, description);
+    }
+    argument(name, description, parseArg, defaultValue) {
+      const argument = this.createArgument(name, description);
+      if (typeof parseArg === "function") {
+        argument.default(defaultValue).argParser(parseArg);
+      } else {
+        argument.default(parseArg);
+      }
+      this.addArgument(argument);
+      return this;
+    }
+    arguments(names) {
+      names.trim().split(/ +/).forEach((detail) => {
+        this.argument(detail);
+      });
+      return this;
+    }
+    addArgument(argument) {
+      const previousArgument = this.registeredArguments.slice(-1)[0];
+      if (previousArgument?.variadic) {
+        throw new Error(`only the last argument can be variadic '${previousArgument.name()}'`);
+      }
+      if (argument.required && argument.defaultValue !== undefined && argument.parseArg === undefined) {
+        throw new Error(`a default value for a required argument is never used: '${argument.name()}'`);
+      }
+      this.registeredArguments.push(argument);
+      return this;
+    }
+    helpCommand(enableOrNameAndArgs, description) {
+      if (typeof enableOrNameAndArgs === "boolean") {
+        this._addImplicitHelpCommand = enableOrNameAndArgs;
+        if (enableOrNameAndArgs && this._defaultCommandGroup) {
+          this._initCommandGroup(this._getHelpCommand());
+        }
+        return this;
+      }
+      const nameAndArgs = enableOrNameAndArgs ?? "help [command]";
+      const [, helpName, helpArgs] = nameAndArgs.match(/([^ ]+) *(.*)/);
+      const helpDescription = description ?? "display help for command";
+      const helpCommand = this.createCommand(helpName);
+      helpCommand.helpOption(false);
+      if (helpArgs)
+        helpCommand.arguments(helpArgs);
+      if (helpDescription)
+        helpCommand.description(helpDescription);
+      this._addImplicitHelpCommand = true;
+      this._helpCommand = helpCommand;
+      if (enableOrNameAndArgs || description)
+        this._initCommandGroup(helpCommand);
+      return this;
+    }
+    addHelpCommand(helpCommand, deprecatedDescription) {
+      if (typeof helpCommand !== "object") {
+        this.helpCommand(helpCommand, deprecatedDescription);
+        return this;
+      }
+      this._addImplicitHelpCommand = true;
+      this._helpCommand = helpCommand;
+      this._initCommandGroup(helpCommand);
+      return this;
+    }
+    _getHelpCommand() {
+      const hasImplicitHelpCommand = this._addImplicitHelpCommand ?? (this.commands.length && !this._actionHandler && !this._findCommand("help"));
+      if (hasImplicitHelpCommand) {
+        if (this._helpCommand === undefined) {
+          this.helpCommand(undefined, undefined);
+        }
+        return this._helpCommand;
+      }
+      return null;
+    }
+    hook(event, listener) {
+      const allowedValues = ["preSubcommand", "preAction", "postAction"];
+      if (!allowedValues.includes(event)) {
+        throw new Error(`Unexpected value for event passed to hook : '${event}'.
+Expecting one of '${allowedValues.join("', '")}'`);
+      }
+      if (this._lifeCycleHooks[event]) {
+        this._lifeCycleHooks[event].push(listener);
+      } else {
+        this._lifeCycleHooks[event] = [listener];
+      }
+      return this;
+    }
+    exitOverride(fn) {
+      if (fn) {
+        this._exitCallback = fn;
+      } else {
+        this._exitCallback = (err) => {
+          if (err.code !== "commander.executeSubCommandAsync") {
+            throw err;
+          } else {}
+        };
+      }
+      return this;
+    }
+    _exit(exitCode, code, message) {
+      if (this._exitCallback) {
+        this._exitCallback(new CommanderError(exitCode, code, message));
+      }
+      process.exit(exitCode);
+    }
+    action(fn) {
+      const listener = (args) => {
+        const expectedArgsCount = this.registeredArguments.length;
+        const actionArgs = args.slice(0, expectedArgsCount);
+        if (this._storeOptionsAsProperties) {
+          actionArgs[expectedArgsCount] = this;
+        } else {
+          actionArgs[expectedArgsCount] = this.opts();
+        }
+        actionArgs.push(this);
+        return fn.apply(this, actionArgs);
+      };
+      this._actionHandler = listener;
+      return this;
+    }
+    createOption(flags, description) {
+      return new Option(flags, description);
+    }
+    _callParseArg(target, value, previous, invalidArgumentMessage) {
+      try {
+        return target.parseArg(value, previous);
+      } catch (err) {
+        if (err.code === "commander.invalidArgument") {
+          const message = `${invalidArgumentMessage} ${err.message}`;
+          this.error(message, { exitCode: err.exitCode, code: err.code });
+        }
+        throw err;
+      }
+    }
+    _registerOption(option) {
+      const matchingOption = option.short && this._findOption(option.short) || option.long && this._findOption(option.long);
+      if (matchingOption) {
+        const matchingFlag = option.long && this._findOption(option.long) ? option.long : option.short;
+        throw new Error(`Cannot add option '${option.flags}'${this._name && ` to command '${this._name}'`} due to conflicting flag '${matchingFlag}'
+-  already used by option '${matchingOption.flags}'`);
+      }
+      this._initOptionGroup(option);
+      this.options.push(option);
+    }
+    _registerCommand(command) {
+      const knownBy = (cmd) => {
+        return [cmd.name()].concat(cmd.aliases());
+      };
+      const alreadyUsed = knownBy(command).find((name) => this._findCommand(name));
+      if (alreadyUsed) {
+        const existingCmd = knownBy(this._findCommand(alreadyUsed)).join("|");
+        const newCmd = knownBy(command).join("|");
+        throw new Error(`cannot add command '${newCmd}' as already have command '${existingCmd}'`);
+      }
+      this._initCommandGroup(command);
+      this.commands.push(command);
+    }
+    addOption(option) {
+      this._registerOption(option);
+      const oname = option.name();
+      const name = option.attributeName();
+      if (option.negate) {
+        const positiveLongFlag = option.long.replace(/^--no-/, "--");
+        if (!this._findOption(positiveLongFlag)) {
+          this.setOptionValueWithSource(name, option.defaultValue === undefined ? true : option.defaultValue, "default");
+        }
+      } else if (option.defaultValue !== undefined) {
+        this.setOptionValueWithSource(name, option.defaultValue, "default");
+      }
+      const handleOptionValue = (val, invalidValueMessage, valueSource) => {
+        if (val == null && option.presetArg !== undefined) {
+          val = option.presetArg;
+        }
+        const oldValue = this.getOptionValue(name);
+        if (val !== null && option.parseArg) {
+          val = this._callParseArg(option, val, oldValue, invalidValueMessage);
+        } else if (val !== null && option.variadic) {
+          val = option._collectValue(val, oldValue);
+        }
+        if (val == null) {
+          if (option.negate) {
+            val = false;
+          } else if (option.isBoolean() || option.optional) {
+            val = true;
+          } else {
+            val = "";
+          }
+        }
+        this.setOptionValueWithSource(name, val, valueSource);
+      };
+      this.on("option:" + oname, (val) => {
+        const invalidValueMessage = `error: option '${option.flags}' argument '${val}' is invalid.`;
+        handleOptionValue(val, invalidValueMessage, "cli");
+      });
+      if (option.envVar) {
+        this.on("optionEnv:" + oname, (val) => {
+          const invalidValueMessage = `error: option '${option.flags}' value '${val}' from env '${option.envVar}' is invalid.`;
+          handleOptionValue(val, invalidValueMessage, "env");
+        });
+      }
+      return this;
+    }
+    _optionEx(config, flags, description, fn, defaultValue) {
+      if (typeof flags === "object" && flags instanceof Option) {
+        throw new Error("To add an Option object use addOption() instead of option() or requiredOption()");
+      }
+      const option = this.createOption(flags, description);
+      option.makeOptionMandatory(!!config.mandatory);
+      if (typeof fn === "function") {
+        option.default(defaultValue).argParser(fn);
+      } else if (fn instanceof RegExp) {
+        const regex = fn;
+        fn = (val, def) => {
+          const m = regex.exec(val);
+          return m ? m[0] : def;
+        };
+        option.default(defaultValue).argParser(fn);
+      } else {
+        option.default(fn);
+      }
+      return this.addOption(option);
+    }
+    option(flags, description, parseArg, defaultValue) {
+      return this._optionEx({}, flags, description, parseArg, defaultValue);
+    }
+    requiredOption(flags, description, parseArg, defaultValue) {
+      return this._optionEx({ mandatory: true }, flags, description, parseArg, defaultValue);
+    }
+    combineFlagAndOptionalValue(combine = true) {
+      this._combineFlagAndOptionalValue = !!combine;
+      return this;
+    }
+    allowUnknownOption(allowUnknown = true) {
+      this._allowUnknownOption = !!allowUnknown;
+      return this;
+    }
+    allowExcessArguments(allowExcess = true) {
+      this._allowExcessArguments = !!allowExcess;
+      return this;
+    }
+    enablePositionalOptions(positional = true) {
+      this._enablePositionalOptions = !!positional;
+      return this;
+    }
+    passThroughOptions(passThrough = true) {
+      this._passThroughOptions = !!passThrough;
+      this._checkForBrokenPassThrough();
+      return this;
+    }
+    _checkForBrokenPassThrough() {
+      if (this.parent && this._passThroughOptions && !this.parent._enablePositionalOptions) {
+        throw new Error(`passThroughOptions cannot be used for '${this._name}' without turning on enablePositionalOptions for parent command(s)`);
+      }
+    }
+    storeOptionsAsProperties(storeAsProperties = true) {
+      if (this.options.length) {
+        throw new Error("call .storeOptionsAsProperties() before adding options");
+      }
+      if (Object.keys(this._optionValues).length) {
+        throw new Error("call .storeOptionsAsProperties() before setting option values");
+      }
+      this._storeOptionsAsProperties = !!storeAsProperties;
+      return this;
+    }
+    getOptionValue(key) {
+      if (this._storeOptionsAsProperties) {
+        return this[key];
+      }
+      return this._optionValues[key];
+    }
+    setOptionValue(key, value) {
+      return this.setOptionValueWithSource(key, value, undefined);
+    }
+    setOptionValueWithSource(key, value, source) {
+      if (this._storeOptionsAsProperties) {
+        this[key] = value;
+      } else {
+        this._optionValues[key] = value;
+      }
+      this._optionValueSources[key] = source;
+      return this;
+    }
+    getOptionValueSource(key) {
+      return this._optionValueSources[key];
+    }
+    getOptionValueSourceWithGlobals(key) {
+      let source;
+      this._getCommandAndAncestors().forEach((cmd) => {
+        if (cmd.getOptionValueSource(key) !== undefined) {
+          source = cmd.getOptionValueSource(key);
+        }
+      });
+      return source;
+    }
+    _prepareUserArgs(argv, parseOptions) {
+      if (argv !== undefined && !Array.isArray(argv)) {
+        throw new Error("first parameter to parse must be array or undefined");
+      }
+      parseOptions = parseOptions || {};
+      if (argv === undefined && parseOptions.from === undefined) {
+        if (process.versions?.electron) {
+          parseOptions.from = "electron";
+        }
+        const execArgv = process.execArgv ?? [];
+        if (execArgv.includes("-e") || execArgv.includes("--eval") || execArgv.includes("-p") || execArgv.includes("--print")) {
+          parseOptions.from = "eval";
+        }
+      }
+      if (argv === undefined) {
+        argv = process.argv;
+      }
+      this.rawArgs = argv.slice();
+      let userArgs;
+      switch (parseOptions.from) {
+        case undefined:
+        case "node":
+          this._scriptPath = argv[1];
+          userArgs = argv.slice(2);
+          break;
+        case "electron":
+          if (process.defaultApp) {
+            this._scriptPath = argv[1];
+            userArgs = argv.slice(2);
+          } else {
+            userArgs = argv.slice(1);
+          }
+          break;
+        case "user":
+          userArgs = argv.slice(0);
+          break;
+        case "eval":
+          userArgs = argv.slice(1);
+          break;
+        default:
+          throw new Error(`unexpected parse option { from: '${parseOptions.from}' }`);
+      }
+      if (!this._name && this._scriptPath)
+        this.nameFromFilename(this._scriptPath);
+      this._name = this._name || "program";
+      return userArgs;
+    }
+    parse(argv, parseOptions) {
+      this._prepareForParse();
+      const userArgs = this._prepareUserArgs(argv, parseOptions);
+      this._parseCommand([], userArgs);
+      return this;
+    }
+    async parseAsync(argv, parseOptions) {
+      this._prepareForParse();
+      const userArgs = this._prepareUserArgs(argv, parseOptions);
+      await this._parseCommand([], userArgs);
+      return this;
+    }
+    _prepareForParse() {
+      if (this._savedState === null) {
+        this.saveStateBeforeParse();
+      } else {
+        this.restoreStateBeforeParse();
+      }
+    }
+    saveStateBeforeParse() {
+      this._savedState = {
+        _name: this._name,
+        _optionValues: { ...this._optionValues },
+        _optionValueSources: { ...this._optionValueSources }
+      };
+    }
+    restoreStateBeforeParse() {
+      if (this._storeOptionsAsProperties)
+        throw new Error(`Can not call parse again when storeOptionsAsProperties is true.
+- either make a new Command for each call to parse, or stop storing options as properties`);
+      this._name = this._savedState._name;
+      this._scriptPath = null;
+      this.rawArgs = [];
+      this._optionValues = { ...this._savedState._optionValues };
+      this._optionValueSources = { ...this._savedState._optionValueSources };
+      this.args = [];
+      this.processedArgs = [];
+    }
+    _checkForMissingExecutable(executableFile, executableDir, subcommandName) {
+      if (fs.existsSync(executableFile))
+        return;
+      const executableDirMessage = executableDir ? `searched for local subcommand relative to directory '${executableDir}'` : "no directory for search for local subcommand, use .executableDir() to supply a custom directory";
+      const executableMissing = `'${executableFile}' does not exist
+ - if '${subcommandName}' is not meant to be an executable command, remove description parameter from '.command()' and use '.description()' instead
+ - if the default executable name is not suitable, use the executableFile option to supply a custom name or path
+ - ${executableDirMessage}`;
+      throw new Error(executableMissing);
+    }
+    _executeSubCommand(subcommand, args) {
+      args = args.slice();
+      let launchWithNode = false;
+      const sourceExt = [".js", ".ts", ".tsx", ".mjs", ".cjs"];
+      function findFile(baseDir, baseName) {
+        const localBin = path.resolve(baseDir, baseName);
+        if (fs.existsSync(localBin))
+          return localBin;
+        if (sourceExt.includes(path.extname(baseName)))
+          return;
+        const foundExt = sourceExt.find((ext) => fs.existsSync(`${localBin}${ext}`));
+        if (foundExt)
+          return `${localBin}${foundExt}`;
+        return;
+      }
+      this._checkForMissingMandatoryOptions();
+      this._checkForConflictingOptions();
+      let executableFile = subcommand._executableFile || `${this._name}-${subcommand._name}`;
+      let executableDir = this._executableDir || "";
+      if (this._scriptPath) {
+        let resolvedScriptPath;
+        try {
+          resolvedScriptPath = fs.realpathSync(this._scriptPath);
+        } catch {
+          resolvedScriptPath = this._scriptPath;
+        }
+        executableDir = path.resolve(path.dirname(resolvedScriptPath), executableDir);
+      }
+      if (executableDir) {
+        let localFile = findFile(executableDir, executableFile);
+        if (!localFile && !subcommand._executableFile && this._scriptPath) {
+          const legacyName = path.basename(this._scriptPath, path.extname(this._scriptPath));
+          if (legacyName !== this._name) {
+            localFile = findFile(executableDir, `${legacyName}-${subcommand._name}`);
+          }
+        }
+        executableFile = localFile || executableFile;
+      }
+      launchWithNode = sourceExt.includes(path.extname(executableFile));
+      let proc;
+      if (process.platform !== "win32") {
+        if (launchWithNode) {
+          args.unshift(executableFile);
+          args = incrementNodeInspectorPort(process.execArgv).concat(args);
+          proc = childProcess.spawn(process.argv[0], args, { stdio: "inherit" });
+        } else {
+          proc = childProcess.spawn(executableFile, args, { stdio: "inherit" });
+        }
+      } else {
+        this._checkForMissingExecutable(executableFile, executableDir, subcommand._name);
+        args.unshift(executableFile);
+        args = incrementNodeInspectorPort(process.execArgv).concat(args);
+        proc = childProcess.spawn(process.execPath, args, { stdio: "inherit" });
+      }
+      if (!proc.killed) {
+        const signals = ["SIGUSR1", "SIGUSR2", "SIGTERM", "SIGINT", "SIGHUP"];
+        signals.forEach((signal) => {
+          process.on(signal, () => {
+            if (proc.killed === false && proc.exitCode === null) {
+              proc.kill(signal);
+            }
+          });
+        });
+      }
+      const exitCallback = this._exitCallback;
+      proc.on("close", (code) => {
+        code = code ?? 1;
+        if (!exitCallback) {
+          process.exit(code);
+        } else {
+          exitCallback(new CommanderError(code, "commander.executeSubCommandAsync", "(close)"));
+        }
+      });
+      proc.on("error", (err) => {
+        if (err.code === "ENOENT") {
+          this._checkForMissingExecutable(executableFile, executableDir, subcommand._name);
+        } else if (err.code === "EACCES") {
+          throw new Error(`'${executableFile}' not executable`);
+        }
+        if (!exitCallback) {
+          process.exit(1);
+        } else {
+          const wrappedError = new CommanderError(1, "commander.executeSubCommandAsync", "(error)");
+          wrappedError.nestedError = err;
+          exitCallback(wrappedError);
+        }
+      });
+      this.runningCommand = proc;
+    }
+    _dispatchSubcommand(commandName, operands, unknown) {
+      const subCommand = this._findCommand(commandName);
+      if (!subCommand)
+        this.help({ error: true });
+      subCommand._prepareForParse();
+      let promiseChain;
+      promiseChain = this._chainOrCallSubCommandHook(promiseChain, subCommand, "preSubcommand");
+      promiseChain = this._chainOrCall(promiseChain, () => {
+        if (subCommand._executableHandler) {
+          this._executeSubCommand(subCommand, operands.concat(unknown));
+        } else {
+          return subCommand._parseCommand(operands, unknown);
+        }
+      });
+      return promiseChain;
+    }
+    _dispatchHelpCommand(subcommandName) {
+      if (!subcommandName) {
+        this.help();
+      }
+      const subCommand = this._findCommand(subcommandName);
+      if (subCommand && !subCommand._executableHandler) {
+        subCommand.help();
+      }
+      return this._dispatchSubcommand(subcommandName, [], [this._getHelpOption()?.long ?? this._getHelpOption()?.short ?? "--help"]);
+    }
+    _checkNumberOfArguments() {
+      this.registeredArguments.forEach((arg, i) => {
+        if (arg.required && this.args[i] == null) {
+          this.missingArgument(arg.name());
+        }
+      });
+      if (this.registeredArguments.length > 0 && this.registeredArguments[this.registeredArguments.length - 1].variadic) {
+        return;
+      }
+      if (this.args.length > this.registeredArguments.length) {
+        this._excessArguments(this.args);
+      }
+    }
+    _processArguments() {
+      const myParseArg = (argument, value, previous) => {
+        let parsedValue = value;
+        if (value !== null && argument.parseArg) {
+          const invalidValueMessage = `error: command-argument value '${value}' is invalid for argument '${argument.name()}'.`;
+          parsedValue = this._callParseArg(argument, value, previous, invalidValueMessage);
+        }
+        return parsedValue;
+      };
+      this._checkNumberOfArguments();
+      const processedArgs = [];
+      this.registeredArguments.forEach((declaredArg, index) => {
+        let value = declaredArg.defaultValue;
+        if (declaredArg.variadic) {
+          if (index < this.args.length) {
+            value = this.args.slice(index);
+            if (declaredArg.parseArg) {
+              value = value.reduce((processed, v) => {
+                return myParseArg(declaredArg, v, processed);
+              }, declaredArg.defaultValue);
+            }
+          } else if (value === undefined) {
+            value = [];
+          }
+        } else if (index < this.args.length) {
+          value = this.args[index];
+          if (declaredArg.parseArg) {
+            value = myParseArg(declaredArg, value, declaredArg.defaultValue);
+          }
+        }
+        processedArgs[index] = value;
+      });
+      this.processedArgs = processedArgs;
+    }
+    _chainOrCall(promise, fn) {
+      if (promise?.then && typeof promise.then === "function") {
+        return promise.then(() => fn());
+      }
+      return fn();
+    }
+    _chainOrCallHooks(promise, event) {
+      let result = promise;
+      const hooks = [];
+      this._getCommandAndAncestors().reverse().filter((cmd) => cmd._lifeCycleHooks[event] !== undefined).forEach((hookedCommand) => {
+        hookedCommand._lifeCycleHooks[event].forEach((callback) => {
+          hooks.push({ hookedCommand, callback });
+        });
+      });
+      if (event === "postAction") {
+        hooks.reverse();
+      }
+      hooks.forEach((hookDetail) => {
+        result = this._chainOrCall(result, () => {
+          return hookDetail.callback(hookDetail.hookedCommand, this);
+        });
+      });
+      return result;
+    }
+    _chainOrCallSubCommandHook(promise, subCommand, event) {
+      let result = promise;
+      if (this._lifeCycleHooks[event] !== undefined) {
+        this._lifeCycleHooks[event].forEach((hook) => {
+          result = this._chainOrCall(result, () => {
+            return hook(this, subCommand);
+          });
+        });
+      }
+      return result;
+    }
+    _parseCommand(operands, unknown) {
+      const parsed = this.parseOptions(unknown);
+      this._parseOptionsEnv();
+      this._parseOptionsImplied();
+      operands = operands.concat(parsed.operands);
+      unknown = parsed.unknown;
+      this.args = operands.concat(unknown);
+      if (operands && this._findCommand(operands[0])) {
+        return this._dispatchSubcommand(operands[0], operands.slice(1), unknown);
+      }
+      if (this._getHelpCommand() && operands[0] === this._getHelpCommand().name()) {
+        return this._dispatchHelpCommand(operands[1]);
+      }
+      if (this._defaultCommandName) {
+        this._outputHelpIfRequested(unknown);
+        return this._dispatchSubcommand(this._defaultCommandName, operands, unknown);
+      }
+      if (this.commands.length && this.args.length === 0 && !this._actionHandler && !this._defaultCommandName) {
+        this.help({ error: true });
+      }
+      this._outputHelpIfRequested(parsed.unknown);
+      this._checkForMissingMandatoryOptions();
+      this._checkForConflictingOptions();
+      const checkForUnknownOptions = () => {
+        if (parsed.unknown.length > 0) {
+          this.unknownOption(parsed.unknown[0]);
+        }
+      };
+      const commandEvent = `command:${this.name()}`;
+      if (this._actionHandler) {
+        checkForUnknownOptions();
+        this._processArguments();
+        let promiseChain;
+        promiseChain = this._chainOrCallHooks(promiseChain, "preAction");
+        promiseChain = this._chainOrCall(promiseChain, () => this._actionHandler(this.processedArgs));
+        if (this.parent) {
+          promiseChain = this._chainOrCall(promiseChain, () => {
+            this.parent.emit(commandEvent, operands, unknown);
+          });
+        }
+        promiseChain = this._chainOrCallHooks(promiseChain, "postAction");
+        return promiseChain;
+      }
+      if (this.parent?.listenerCount(commandEvent)) {
+        checkForUnknownOptions();
+        this._processArguments();
+        this.parent.emit(commandEvent, operands, unknown);
+      } else if (operands.length) {
+        if (this._findCommand("*")) {
+          return this._dispatchSubcommand("*", operands, unknown);
+        }
+        if (this.listenerCount("command:*")) {
+          this.emit("command:*", operands, unknown);
+        } else if (this.commands.length) {
+          this.unknownCommand();
+        } else {
+          checkForUnknownOptions();
+          this._processArguments();
+        }
+      } else if (this.commands.length) {
+        checkForUnknownOptions();
+        this.help({ error: true });
+      } else {
+        checkForUnknownOptions();
+        this._processArguments();
+      }
+    }
+    _findCommand(name) {
+      if (!name)
+        return;
+      return this.commands.find((cmd) => cmd._name === name || cmd._aliases.includes(name));
+    }
+    _findOption(arg) {
+      return this.options.find((option) => option.is(arg));
+    }
+    _checkForMissingMandatoryOptions() {
+      this._getCommandAndAncestors().forEach((cmd) => {
+        cmd.options.forEach((anOption) => {
+          if (anOption.mandatory && cmd.getOptionValue(anOption.attributeName()) === undefined) {
+            cmd.missingMandatoryOptionValue(anOption);
+          }
+        });
+      });
+    }
+    _checkForConflictingLocalOptions() {
+      const definedNonDefaultOptions = this.options.filter((option) => {
+        const optionKey = option.attributeName();
+        if (this.getOptionValue(optionKey) === undefined) {
+          return false;
+        }
+        return this.getOptionValueSource(optionKey) !== "default";
+      });
+      const optionsWithConflicting = definedNonDefaultOptions.filter((option) => option.conflictsWith.length > 0);
+      optionsWithConflicting.forEach((option) => {
+        const conflictingAndDefined = definedNonDefaultOptions.find((defined) => option.conflictsWith.includes(defined.attributeName()));
+        if (conflictingAndDefined) {
+          this._conflictingOption(option, conflictingAndDefined);
+        }
+      });
+    }
+    _checkForConflictingOptions() {
+      this._getCommandAndAncestors().forEach((cmd) => {
+        cmd._checkForConflictingLocalOptions();
+      });
+    }
+    parseOptions(args) {
+      const operands = [];
+      const unknown = [];
+      let dest = operands;
+      function maybeOption(arg) {
+        return arg.length > 1 && arg[0] === "-";
+      }
+      const negativeNumberArg = (arg) => {
+        if (!/^-(\d+|\d*\.\d+)(e[+-]?\d+)?$/.test(arg))
+          return false;
+        return !this._getCommandAndAncestors().some((cmd) => cmd.options.map((opt) => opt.short).some((short) => /^-\d$/.test(short)));
+      };
+      let activeVariadicOption = null;
+      let activeGroup = null;
+      let i = 0;
+      while (i < args.length || activeGroup) {
+        const arg = activeGroup ?? args[i++];
+        activeGroup = null;
+        if (arg === "--") {
+          if (dest === unknown)
+            dest.push(arg);
+          dest.push(...args.slice(i));
+          break;
+        }
+        if (activeVariadicOption && (!maybeOption(arg) || negativeNumberArg(arg))) {
+          this.emit(`option:${activeVariadicOption.name()}`, arg);
+          continue;
+        }
+        activeVariadicOption = null;
+        if (maybeOption(arg)) {
+          const option = this._findOption(arg);
+          if (option) {
+            if (option.required) {
+              const value = args[i++];
+              if (value === undefined)
+                this.optionMissingArgument(option);
+              this.emit(`option:${option.name()}`, value);
+            } else if (option.optional) {
+              let value = null;
+              if (i < args.length && (!maybeOption(args[i]) || negativeNumberArg(args[i]))) {
+                value = args[i++];
+              }
+              this.emit(`option:${option.name()}`, value);
+            } else {
+              this.emit(`option:${option.name()}`);
+            }
+            activeVariadicOption = option.variadic ? option : null;
+            continue;
+          }
+        }
+        if (arg.length > 2 && arg[0] === "-" && arg[1] !== "-") {
+          const option = this._findOption(`-${arg[1]}`);
+          if (option) {
+            if (option.required || option.optional && this._combineFlagAndOptionalValue) {
+              this.emit(`option:${option.name()}`, arg.slice(2));
+            } else {
+              this.emit(`option:${option.name()}`);
+              activeGroup = `-${arg.slice(2)}`;
+            }
+            continue;
+          }
+        }
+        if (/^--[^=]+=/.test(arg)) {
+          const index = arg.indexOf("=");
+          const option = this._findOption(arg.slice(0, index));
+          if (option && (option.required || option.optional)) {
+            this.emit(`option:${option.name()}`, arg.slice(index + 1));
+            continue;
+          }
+        }
+        if (dest === operands && maybeOption(arg) && !(this.commands.length === 0 && negativeNumberArg(arg))) {
+          dest = unknown;
+        }
+        if ((this._enablePositionalOptions || this._passThroughOptions) && operands.length === 0 && unknown.length === 0) {
+          if (this._findCommand(arg)) {
+            operands.push(arg);
+            unknown.push(...args.slice(i));
+            break;
+          } else if (this._getHelpCommand() && arg === this._getHelpCommand().name()) {
+            operands.push(arg, ...args.slice(i));
+            break;
+          } else if (this._defaultCommandName) {
+            unknown.push(arg, ...args.slice(i));
+            break;
+          }
+        }
+        if (this._passThroughOptions) {
+          dest.push(arg, ...args.slice(i));
+          break;
+        }
+        dest.push(arg);
+      }
+      return { operands, unknown };
+    }
+    opts() {
+      if (this._storeOptionsAsProperties) {
+        const result = {};
+        const len = this.options.length;
+        for (let i = 0;i < len; i++) {
+          const key = this.options[i].attributeName();
+          result[key] = key === this._versionOptionName ? this._version : this[key];
+        }
+        return result;
+      }
+      return this._optionValues;
+    }
+    optsWithGlobals() {
+      return this._getCommandAndAncestors().reduce((combinedOptions, cmd) => Object.assign(combinedOptions, cmd.opts()), {});
+    }
+    error(message, errorOptions) {
+      this._outputConfiguration.outputError(`${message}
+`, this._outputConfiguration.writeErr);
+      if (typeof this._showHelpAfterError === "string") {
+        this._outputConfiguration.writeErr(`${this._showHelpAfterError}
+`);
+      } else if (this._showHelpAfterError) {
+        this._outputConfiguration.writeErr(`
+`);
+        this.outputHelp({ error: true });
+      }
+      const config = errorOptions || {};
+      const exitCode = config.exitCode || 1;
+      const code = config.code || "commander.error";
+      this._exit(exitCode, code, message);
+    }
+    _parseOptionsEnv() {
+      this.options.forEach((option) => {
+        if (option.envVar && option.envVar in process.env) {
+          const optionKey = option.attributeName();
+          if (this.getOptionValue(optionKey) === undefined || ["default", "config", "env"].includes(this.getOptionValueSource(optionKey))) {
+            if (option.required || option.optional) {
+              this.emit(`optionEnv:${option.name()}`, process.env[option.envVar]);
+            } else {
+              this.emit(`optionEnv:${option.name()}`);
+            }
+          }
+        }
+      });
+    }
+    _parseOptionsImplied() {
+      const dualHelper = new DualOptions(this.options);
+      const hasCustomOptionValue = (optionKey) => {
+        return this.getOptionValue(optionKey) !== undefined && !["default", "implied"].includes(this.getOptionValueSource(optionKey));
+      };
+      this.options.filter((option) => option.implied !== undefined && hasCustomOptionValue(option.attributeName()) && dualHelper.valueFromOption(this.getOptionValue(option.attributeName()), option)).forEach((option) => {
+        Object.keys(option.implied).filter((impliedKey) => !hasCustomOptionValue(impliedKey)).forEach((impliedKey) => {
+          this.setOptionValueWithSource(impliedKey, option.implied[impliedKey], "implied");
+        });
+      });
+    }
+    missingArgument(name) {
+      const message = `error: missing required argument '${name}'`;
+      this.error(message, { code: "commander.missingArgument" });
+    }
+    optionMissingArgument(option) {
+      const message = `error: option '${option.flags}' argument missing`;
+      this.error(message, { code: "commander.optionMissingArgument" });
+    }
+    missingMandatoryOptionValue(option) {
+      const message = `error: required option '${option.flags}' not specified`;
+      this.error(message, { code: "commander.missingMandatoryOptionValue" });
+    }
+    _conflictingOption(option, conflictingOption) {
+      const findBestOptionFromValue = (option2) => {
+        const optionKey = option2.attributeName();
+        const optionValue = this.getOptionValue(optionKey);
+        const negativeOption = this.options.find((target) => target.negate && optionKey === target.attributeName());
+        const positiveOption = this.options.find((target) => !target.negate && optionKey === target.attributeName());
+        if (negativeOption && (negativeOption.presetArg === undefined && optionValue === false || negativeOption.presetArg !== undefined && optionValue === negativeOption.presetArg)) {
+          return negativeOption;
+        }
+        return positiveOption || option2;
+      };
+      const getErrorMessage = (option2) => {
+        const bestOption = findBestOptionFromValue(option2);
+        const optionKey = bestOption.attributeName();
+        const source = this.getOptionValueSource(optionKey);
+        if (source === "env") {
+          return `environment variable '${bestOption.envVar}'`;
+        }
+        return `option '${bestOption.flags}'`;
+      };
+      const message = `error: ${getErrorMessage(option)} cannot be used with ${getErrorMessage(conflictingOption)}`;
+      this.error(message, { code: "commander.conflictingOption" });
+    }
+    unknownOption(flag) {
+      if (this._allowUnknownOption)
+        return;
+      let suggestion = "";
+      if (flag.startsWith("--") && this._showSuggestionAfterError) {
+        let candidateFlags = [];
+        let command = this;
+        do {
+          const moreFlags = command.createHelp().visibleOptions(command).filter((option) => option.long).map((option) => option.long);
+          candidateFlags = candidateFlags.concat(moreFlags);
+          command = command.parent;
+        } while (command && !command._enablePositionalOptions);
+        suggestion = suggestSimilar(flag, candidateFlags);
+      }
+      const message = `error: unknown option '${flag}'${suggestion}`;
+      this.error(message, { code: "commander.unknownOption" });
+    }
+    _excessArguments(receivedArgs) {
+      if (this._allowExcessArguments)
+        return;
+      const expected = this.registeredArguments.length;
+      const s = expected === 1 ? "" : "s";
+      const forSubcommand = this.parent ? ` for '${this.name()}'` : "";
+      const message = `error: too many arguments${forSubcommand}. Expected ${expected} argument${s} but got ${receivedArgs.length}.`;
+      this.error(message, { code: "commander.excessArguments" });
+    }
+    unknownCommand() {
+      const unknownName = this.args[0];
+      let suggestion = "";
+      if (this._showSuggestionAfterError) {
+        const candidateNames = [];
+        this.createHelp().visibleCommands(this).forEach((command) => {
+          candidateNames.push(command.name());
+          if (command.alias())
+            candidateNames.push(command.alias());
+        });
+        suggestion = suggestSimilar(unknownName, candidateNames);
+      }
+      const message = `error: unknown command '${unknownName}'${suggestion}`;
+      this.error(message, { code: "commander.unknownCommand" });
+    }
+    version(str, flags, description) {
+      if (str === undefined)
+        return this._version;
+      this._version = str;
+      flags = flags || "-V, --version";
+      description = description || "output the version number";
+      const versionOption = this.createOption(flags, description);
+      this._versionOptionName = versionOption.attributeName();
+      this._registerOption(versionOption);
+      this.on("option:" + versionOption.name(), () => {
+        this._outputConfiguration.writeOut(`${str}
+`);
+        this._exit(0, "commander.version", str);
+      });
+      return this;
+    }
+    description(str, argsDescription) {
+      if (str === undefined && argsDescription === undefined)
+        return this._description;
+      this._description = str;
+      if (argsDescription) {
+        this._argsDescription = argsDescription;
+      }
+      return this;
+    }
+    summary(str) {
+      if (str === undefined)
+        return this._summary;
+      this._summary = str;
+      return this;
+    }
+    alias(alias) {
+      if (alias === undefined)
+        return this._aliases[0];
+      let command = this;
+      if (this.commands.length !== 0 && this.commands[this.commands.length - 1]._executableHandler) {
+        command = this.commands[this.commands.length - 1];
+      }
+      if (alias === command._name)
+        throw new Error("Command alias can't be the same as its name");
+      const matchingCommand = this.parent?._findCommand(alias);
+      if (matchingCommand) {
+        const existingCmd = [matchingCommand.name()].concat(matchingCommand.aliases()).join("|");
+        throw new Error(`cannot add alias '${alias}' to command '${this.name()}' as already have command '${existingCmd}'`);
+      }
+      command._aliases.push(alias);
+      return this;
+    }
+    aliases(aliases) {
+      if (aliases === undefined)
+        return this._aliases;
+      aliases.forEach((alias) => this.alias(alias));
+      return this;
+    }
+    usage(str) {
+      if (str === undefined) {
+        if (this._usage)
+          return this._usage;
+        const args = this.registeredArguments.map((arg) => {
+          return humanReadableArgName(arg);
+        });
+        return [].concat(this.options.length || this._helpOption !== null ? "[options]" : [], this.commands.length ? "[command]" : [], this.registeredArguments.length ? args : []).join(" ");
+      }
+      this._usage = str;
+      return this;
+    }
+    name(str) {
+      if (str === undefined)
+        return this._name;
+      this._name = str;
+      return this;
+    }
+    helpGroup(heading) {
+      if (heading === undefined)
+        return this._helpGroupHeading ?? "";
+      this._helpGroupHeading = heading;
+      return this;
+    }
+    commandsGroup(heading) {
+      if (heading === undefined)
+        return this._defaultCommandGroup ?? "";
+      this._defaultCommandGroup = heading;
+      return this;
+    }
+    optionsGroup(heading) {
+      if (heading === undefined)
+        return this._defaultOptionGroup ?? "";
+      this._defaultOptionGroup = heading;
+      return this;
+    }
+    _initOptionGroup(option) {
+      if (this._defaultOptionGroup && !option.helpGroupHeading)
+        option.helpGroup(this._defaultOptionGroup);
+    }
+    _initCommandGroup(cmd) {
+      if (this._defaultCommandGroup && !cmd.helpGroup())
+        cmd.helpGroup(this._defaultCommandGroup);
+    }
+    nameFromFilename(filename) {
+      this._name = path.basename(filename, path.extname(filename));
+      return this;
+    }
+    executableDir(path2) {
+      if (path2 === undefined)
+        return this._executableDir;
+      this._executableDir = path2;
+      return this;
+    }
+    helpInformation(contextOptions) {
+      const helper = this.createHelp();
+      const context = this._getOutputContext(contextOptions);
+      helper.prepareContext({
+        error: context.error,
+        helpWidth: context.helpWidth,
+        outputHasColors: context.hasColors
+      });
+      const text = helper.formatHelp(this, helper);
+      if (context.hasColors)
+        return text;
+      return this._outputConfiguration.stripColor(text);
+    }
+    _getOutputContext(contextOptions) {
+      contextOptions = contextOptions || {};
+      const error = !!contextOptions.error;
+      let baseWrite;
+      let hasColors;
+      let helpWidth;
+      if (error) {
+        baseWrite = (str) => this._outputConfiguration.writeErr(str);
+        hasColors = this._outputConfiguration.getErrHasColors();
+        helpWidth = this._outputConfiguration.getErrHelpWidth();
+      } else {
+        baseWrite = (str) => this._outputConfiguration.writeOut(str);
+        hasColors = this._outputConfiguration.getOutHasColors();
+        helpWidth = this._outputConfiguration.getOutHelpWidth();
+      }
+      const write = (str) => {
+        if (!hasColors)
+          str = this._outputConfiguration.stripColor(str);
+        return baseWrite(str);
+      };
+      return { error, write, hasColors, helpWidth };
+    }
+    outputHelp(contextOptions) {
+      let deprecatedCallback;
+      if (typeof contextOptions === "function") {
+        deprecatedCallback = contextOptions;
+        contextOptions = undefined;
+      }
+      const outputContext = this._getOutputContext(contextOptions);
+      const eventContext = {
+        error: outputContext.error,
+        write: outputContext.write,
+        command: this
+      };
+      this._getCommandAndAncestors().reverse().forEach((command) => command.emit("beforeAllHelp", eventContext));
+      this.emit("beforeHelp", eventContext);
+      let helpInformation = this.helpInformation({ error: outputContext.error });
+      if (deprecatedCallback) {
+        helpInformation = deprecatedCallback(helpInformation);
+        if (typeof helpInformation !== "string" && !Buffer.isBuffer(helpInformation)) {
+          throw new Error("outputHelp callback must return a string or a Buffer");
+        }
+      }
+      outputContext.write(helpInformation);
+      if (this._getHelpOption()?.long) {
+        this.emit(this._getHelpOption().long);
+      }
+      this.emit("afterHelp", eventContext);
+      this._getCommandAndAncestors().forEach((command) => command.emit("afterAllHelp", eventContext));
+    }
+    helpOption(flags, description) {
+      if (typeof flags === "boolean") {
+        if (flags) {
+          if (this._helpOption === null)
+            this._helpOption = undefined;
+          if (this._defaultOptionGroup) {
+            this._initOptionGroup(this._getHelpOption());
+          }
+        } else {
+          this._helpOption = null;
+        }
+        return this;
+      }
+      this._helpOption = this.createOption(flags ?? "-h, --help", description ?? "display help for command");
+      if (flags || description)
+        this._initOptionGroup(this._helpOption);
+      return this;
+    }
+    _getHelpOption() {
+      if (this._helpOption === undefined) {
+        this.helpOption(undefined, undefined);
+      }
+      return this._helpOption;
+    }
+    addHelpOption(option) {
+      this._helpOption = option;
+      this._initOptionGroup(option);
+      return this;
+    }
+    help(contextOptions) {
+      this.outputHelp(contextOptions);
+      let exitCode = Number(process.exitCode ?? 0);
+      if (exitCode === 0 && contextOptions && typeof contextOptions !== "function" && contextOptions.error) {
+        exitCode = 1;
+      }
+      this._exit(exitCode, "commander.help", "(outputHelp)");
+    }
+    addHelpText(position, text) {
+      const allowedValues = ["beforeAll", "before", "after", "afterAll"];
+      if (!allowedValues.includes(position)) {
+        throw new Error(`Unexpected value for position to addHelpText.
+Expecting one of '${allowedValues.join("', '")}'`);
+      }
+      const helpEvent = `${position}Help`;
+      this.on(helpEvent, (context) => {
+        let helpStr;
+        if (typeof text === "function") {
+          helpStr = text({ error: context.error, command: context.command });
+        } else {
+          helpStr = text;
+        }
+        if (helpStr) {
+          context.write(`${helpStr}
+`);
+        }
+      });
+      return this;
+    }
+    _outputHelpIfRequested(args) {
+      const helpOption = this._getHelpOption();
+      const helpRequested = helpOption && args.find((arg) => helpOption.is(arg));
+      if (helpRequested) {
+        this.outputHelp();
+        this._exit(0, "commander.helpDisplayed", "(outputHelp)");
+      }
+    }
+  }
+  function incrementNodeInspectorPort(args) {
+    return args.map((arg) => {
+      if (!arg.startsWith("--inspect")) {
+        return arg;
+      }
+      let debugOption;
+      let debugHost = "127.0.0.1";
+      let debugPort = "9229";
+      let match;
+      if ((match = arg.match(/^(--inspect(-brk)?)$/)) !== null) {
+        debugOption = match[1];
+      } else if ((match = arg.match(/^(--inspect(-brk|-port)?)=([^:]+)$/)) !== null) {
+        debugOption = match[1];
+        if (/^\d+$/.test(match[3])) {
+          debugPort = match[3];
+        } else {
+          debugHost = match[3];
+        }
+      } else if ((match = arg.match(/^(--inspect(-brk|-port)?)=([^:]+):(\d+)$/)) !== null) {
+        debugOption = match[1];
+        debugHost = match[3];
+        debugPort = match[4];
+      }
+      if (debugOption && debugPort !== "0") {
+        return `${debugOption}=${debugHost}:${parseInt(debugPort) + 1}`;
+      }
+      return arg;
+    });
+  }
+  function useColor() {
+    if (process.env.NO_COLOR || process.env.FORCE_COLOR === "0" || process.env.FORCE_COLOR === "false")
+      return false;
+    if (process.env.FORCE_COLOR || process.env.CLICOLOR_FORCE !== undefined)
+      return true;
+    return;
+  }
+  exports.Command = Command;
+  exports.useColor = useColor;
+});
+
+// node_modules/commander/index.js
+var require_commander = __commonJS((exports) => {
+  var { Argument } = require_argument();
+  var { Command } = require_command();
+  var { CommanderError, InvalidArgumentError } = require_error();
+  var { Help } = require_help();
+  var { Option } = require_option();
+  exports.program = new Command;
+  exports.createCommand = (name) => new Command(name);
+  exports.createOption = (flags, description) => new Option(flags, description);
+  exports.createArgument = (name, description) => new Argument(name, description);
+  exports.Command = Command;
+  exports.Option = Option;
+  exports.Argument = Argument;
+  exports.Help = Help;
+  exports.CommanderError = CommanderError;
+  exports.InvalidArgumentError = InvalidArgumentError;
+  exports.InvalidOptionArgumentError = InvalidArgumentError;
+});
+
+// node_modules/liquid/lib/liquid.js
+var require_liquid = __commonJS((exports, module) => {
+  class Liquid {
+  }
+  Liquid.FilterSeparator = /\|/;
+  Liquid.ArgumentSeparator = /,/;
+  Liquid.FilterArgumentSeparator = /:/;
+  Liquid.VariableAttributeSeparator = /\./;
+  Liquid.TagStart = /\{%/;
+  Liquid.TagEnd = /%\}/;
+  Liquid.VariableSignature = /\(?[\w\-.[\]]\)?/;
+  Liquid.VariableSegment = /[\w-]/;
+  Liquid.VariableStart = /\{\{/;
+  Liquid.VariableEnd = /\}\}/;
+  Liquid.VariableIncompleteEnd = /\}\}?/;
+  Liquid.QuotedString = /"[^"]*"|'[^']*'/;
+  Liquid.QuotedFragment = RegExp(Liquid.QuotedString.source + `|(?:[^\\s,\\|'"]|` + Liquid.QuotedString.source + ")+");
+  Liquid.StrictQuotedFragment = /"[^"]+"|'[^']+'|[^\s|:,]+/;
+  Liquid.FirstFilterArgument = RegExp(Liquid.FilterArgumentSeparator.source + "(?:" + Liquid.StrictQuotedFragment.source + ")");
+  Liquid.OtherFilterArgument = RegExp(Liquid.ArgumentSeparator.source + "(?:" + Liquid.StrictQuotedFragment.source + ")");
+  Liquid.SpacelessFilter = RegExp(`^(?:'[^']+'|"[^"]+"|[^'"])*` + Liquid.FilterSeparator.source + "(?:" + Liquid.StrictQuotedFragment.source + ")(?:" + Liquid.FirstFilterArgument.source + "(?:" + Liquid.OtherFilterArgument.source + ")*)?");
+  Liquid.Expression = RegExp("(?:" + Liquid.QuotedFragment.source + "(?:" + Liquid.SpacelessFilter.source + ")*)");
+  Liquid.TagAttributes = RegExp("(\\w+)\\s*\\:\\s*(" + Liquid.QuotedFragment.source + ")");
+  Liquid.AnyStartingTag = /\{\{|\{%/;
+  Liquid.PartialTemplateParser = RegExp(Liquid.TagStart.source + ".*?" + Liquid.TagEnd.source + "|" + Liquid.VariableStart.source + ".*?" + Liquid.VariableIncompleteEnd.source);
+  Liquid.TemplateParser = RegExp("(" + Liquid.PartialTemplateParser.source + "|" + Liquid.AnyStartingTag.source + ")");
+  Liquid.VariableParser = RegExp("\\[[^\\]]+\\]|" + Liquid.VariableSegment.source + "+\\??");
+  module.exports = Liquid;
+});
+
+// node_modules/liquid/lib/liquid/engine.js
+var require_engine = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  module.exports = class Engine {
+    constructor() {
+      this.tags = {};
+      this.Strainer = function(context) {
+        this.context = context;
+      };
+      this.registerFilters(Liquid.StandardFilters);
+      this.fileSystem = new Liquid.BlankFileSystem;
+      for (const tagName in Liquid) {
+        if (!Object.prototype.hasOwnProperty.call(Liquid, tagName))
+          continue;
+        const tag = Liquid[tagName];
+        if (!(tag.prototype instanceof Liquid.Tag)) {
+          continue;
+        }
+        const isBlockOrTagBaseClass = [Liquid.Tag, Liquid.Block].indexOf(tag.constructor) >= 0;
+        if (!isBlockOrTagBaseClass) {
+          this.registerTag(tagName.toLowerCase(), tag);
+        }
+      }
+    }
+    registerTag(name, tag) {
+      this.tags[name] = tag;
+    }
+    registerFilters(...filters) {
+      return filters.forEach((filter) => {
+        const results = [];
+        for (const key in filter) {
+          if (!Object.prototype.hasOwnProperty.call(filter, key))
+            continue;
+          const value = filter[key];
+          if (value instanceof Function) {
+            results.push(this.Strainer.prototype[key] = value);
+          } else {
+            results.push(undefined);
+          }
+        }
+        return results;
+      });
+    }
+    async parse(source) {
+      const template = new Liquid.Template;
+      return template.parse(this, source);
+    }
+    async parseAndRender(source, context) {
+      const template = await this.parse(source);
+      return template.render(context);
+    }
+    registerFileSystem(fileSystem) {
+      if (!(fileSystem instanceof Liquid.BlankFileSystem)) {
+        throw Liquid.ArgumentError("Must be subclass of Liquid.BlankFileSystem");
+      }
+      this.fileSystem = fileSystem;
+      return this.fileSystem;
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/helpers.js
+var require_helpers = __commonJS((exports, module) => {
+  module.exports = {
+    flatten: (array) => {
+      const output = [];
+      const _flatten = (childArray) => {
+        return childArray.forEach((item) => {
+          if (Array.isArray(item)) {
+            return _flatten(item);
+          } else {
+            return output.push(item);
+          }
+        });
+      };
+      _flatten(array);
+      return output;
+    },
+    toFlatString: function(array) {
+      return this.flatten(array).join("");
+    },
+    scan: (string, regexp, globalMatch = false) => {
+      const result = [];
+      const _scan = (s) => {
+        const match = regexp.exec(s);
+        if (!match)
+          return;
+        if (match.length === 1) {
+          result.push(match[0]);
+        } else {
+          result.push(match.slice(1));
+        }
+        const l = globalMatch ? 1 : match[0].length;
+        if (match.index + l < s.length) {
+          return _scan(s.substring(match.index + l));
+        }
+      };
+      _scan(string);
+      return result;
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/range.js
+var require_range = __commonJS((exports, module) => {
+  module.exports = class Range {
+    constructor(start, end, step) {
+      this.start = start;
+      this.end = end;
+      this.step = step != null ? step : 0;
+      if (this.step === 0) {
+        if (this.end < this.start) {
+          this.step = -1;
+        } else {
+          this.step = 1;
+        }
+      }
+      Object.seal(this);
+    }
+    get length() {
+      return Math.floor((this.end - this.start) / this.step);
+    }
+    some(f) {
+      let current = this.start;
+      const end = this.end;
+      const step = this.step;
+      if (step > 0) {
+        while (current < end) {
+          if (f(current)) {
+            return true;
+          }
+          current += step;
+        }
+      } else {
+        while (current > end) {
+          if (f(current)) {
+            return true;
+          }
+          current += step;
+        }
+      }
+      return false;
+    }
+    forEach(f) {
+      return this.some(function(e) {
+        f(e);
+        return false;
+      });
+    }
+    toArray() {
+      const array = [];
+      this.forEach((e) => {
+        return array.push(e);
+      });
+      return array;
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/iterable.js
+var require_iterable = __commonJS((exports, module) => {
+  var Range = require_range();
+  var isString = (input) => {
+    return Object.prototype.toString.call(input) === "[object String]";
+  };
+
+  class Iterable {
+    static cast(v) {
+      if (v instanceof Iterable) {
+        return v;
+      } else if (v instanceof Range) {
+        return new IterableForArray(v.toArray());
+      } else if (Array.isArray(v) || isString(v)) {
+        return new IterableForArray(v);
+      } else if (v != null) {
+        return new IterableForArray([v]);
+      } else {
+        return new IterableForArray([]);
+      }
+    }
+    first() {
+      const array = this.toArray();
+      return array[0];
+    }
+    async map(mapper) {
+      const array = this.toArray();
+      return Promise.all(array.map(mapper));
+    }
+    sort(sorter) {
+      const array = this.toArray();
+      return array.sort(sorter);
+    }
+    toArray() {
+      return this.slice(0);
+    }
+    slice() {
+      throw new Error(this.constructor.name + ".slice() not implemented");
+    }
+    last() {
+      throw new Error(this.constructor.name + ".last() not implemented");
+    }
+  }
+
+  class IterableForArray extends Iterable {
+    constructor(array) {
+      super();
+      this.array = array;
+    }
+    slice() {
+      return this.array.slice.apply(this.array, arguments);
+    }
+    last() {
+      return this.array[this.array.length - 1];
+    }
+  }
+  module.exports = Iterable;
+});
+
+// node_modules/liquid/lib/liquid/drop.js
+var require_drop = __commonJS((exports, module) => {
+  module.exports = class Drop {
+    constructor() {
+      this.context = null;
+    }
+    static isInvokable(method) {
+      if (!this.invokableMethods) {
+        const denylist = Object.keys(Drop.prototype);
+        const allowlist = ["toLiquid"];
+        Object.keys(this.prototype).forEach((k) => {
+          if (!(denylist.indexOf(k) >= 0)) {
+            return allowlist.push(k);
+          }
+        });
+        this.invokableMethods = allowlist;
+      }
+      return this.invokableMethods.indexOf(method) >= 0;
+    }
+    hasKey() {
+      return true;
+    }
+    invokeDrop(methodOrKey) {
+      if (this.constructor.isInvokable(methodOrKey)) {
+        const value = this[methodOrKey];
+        if (typeof value === "function") {
+          return value.call(this);
+        } else {
+          return value;
+        }
+      } else {
+        return this.beforeMethod(methodOrKey);
+      }
+    }
+    beforeMethod() {}
+    get(methodOrKey) {
+      return this.invokeDrop(methodOrKey);
+    }
+    toLiquid() {
+      return this;
+    }
+    toString() {
+      return "[Liquid.Drop " + this.constructor.name + "]";
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/context.js
+var require_context = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  var squareBracketed = /^\[(.*)\]$/;
+
+  class Context {
+    constructor(engine, environments = {}, outerScope = {}, registers = {}, rethrowErrors = false) {
+      this.environments = Liquid.Helpers.flatten([environments]);
+      this.scopes = [outerScope];
+      this.registers = registers;
+      this.errors = [];
+      this.rethrowErrors = rethrowErrors;
+      this.strainer = engine ? new engine.Strainer(this) : {};
+      this.squashInstanceAssignsWithEnvironments();
+    }
+    registerFilters(...filters) {
+      for (const filter of filters) {
+        for (const key in filter) {
+          if (!Object.prototype.hasOwnProperty.call(filter, key))
+            continue;
+          const value = filter[key];
+          if (value instanceof Function) {
+            this.strainer[key] = value;
+          }
+        }
+      }
+    }
+    handleError(e) {
+      this.errors.push(e);
+      if (this.rethrowErrors) {
+        throw e;
+      }
+      if (e instanceof Liquid.SyntaxError) {
+        return "Liquid syntax error: " + e.message;
+      } else {
+        return "Liquid error: " + e.message;
+      }
+    }
+    invoke(methodName, ...args) {
+      const method = this.strainer[methodName];
+      if (method instanceof Function) {
+        return method.apply(this.strainer, args);
+      } else {
+        const available = Object.keys(this.strainer);
+        throw new Liquid.FilterNotFound("Unknown filter `" + methodName + "`, available: [" + available.join(", ") + "]");
+      }
+    }
+    push(newScope = {}) {
+      this.scopes.unshift(newScope);
+      if (this.scopes.length > 100) {
+        throw new Error("Nesting too deep");
+      }
+    }
+    merge(newScope = {}) {
+      const results = [];
+      for (const key in newScope) {
+        if (!Object.prototype.hasOwnProperty.call(newScope, key))
+          continue;
+        const v = newScope[key];
+        results.push(this.scopes[0][key] = v);
+      }
+      return results;
+    }
+    pop() {
+      if (this.scopes.length <= 1) {
+        throw new Error("ContextError");
+      }
+      return this.scopes.shift();
+    }
+    lastScope() {
+      return this.scopes[this.scopes.length - 1];
+    }
+    stack(newScope = {}, f) {
+      let popLater = false;
+      try {
+        if (arguments.length < 2) {
+          f = newScope;
+          newScope = {};
+        }
+        this.push(newScope);
+        const result = f();
+        if (result && result.nodeify) {
+          popLater = true;
+          result.nodeify(() => this.pop());
+        }
+        return result;
+      } finally {
+        if (!popLater) {
+          this.pop();
+        }
+      }
+    }
+    clearInstanceAssigns() {
+      this.scopes[0] = {};
+    }
+    set(key, value) {
+      this.scopes[0][key] = value;
+    }
+    async get(key) {
+      return this.resolve(key);
+    }
+    async hasKey(key) {
+      const value = await this.resolve(key);
+      return value != null;
+    }
+    async resolve(key) {
+      let match;
+      if (Liquid.Context.Literals.hasOwnProperty(key)) {
+        return Liquid.Context.Literals[key];
+      } else if (match = /^'(.*)'$/.exec(key)) {
+        return match[1];
+      } else if (match = /^"(.*)"$/.exec(key)) {
+        return match[1];
+      } else if (match = /^(\d+)$/.exec(key)) {
+        return Number(match[1]);
+      } else if (match = /^\((\S+)\.\.(\S+)\)$/.exec(key)) {
+        const loHi = [match[1], match[2]];
+        const [loArg, hiArg] = await Promise.all(loHi.map(async (arg) => {
+          const value = await this.resolve(arg);
+          return Number(value);
+        }));
+        if (isNaN(loArg) || isNaN(hiArg)) {
+          return [];
+        }
+        return new Liquid.Range(loArg, hiArg + 1);
+      } else if (match = /^(\d[\d.]+)$/.exec(key)) {
+        return Number(match[1]);
+      } else {
+        return this.variable(key);
+      }
+    }
+    async findVariable(key) {
+      let variableScope = this.scopes.find((scope) => {
+        return Object.prototype.hasOwnProperty.call(scope, key);
+      });
+      let variable;
+      if (variableScope == null) {
+        this.environments.some((env) => {
+          variable = this.lookupAndEvaluate(env, key);
+          if (variable != null) {
+            variableScope = env;
+            return variableScope;
+          }
+        });
+      }
+      if (variableScope == null) {
+        if (this.environments.length > 0) {
+          variableScope = this.environments[this.environments.length - 1];
+        } else if (this.scopes.length > 0) {
+          variableScope = this.scopes[this.scopes.length - 1];
+        } else {
+          throw new Error("No scopes to find variable in.");
+        }
+      }
+      if (variable == null) {
+        variable = this.lookupAndEvaluate(variableScope, key);
+      }
+      return this.liquify(variable);
+    }
+    async mapper(part, object) {
+      if (object == null) {
+        return object;
+      }
+      object = await this.liquify(object);
+      if (object == null) {
+        return object;
+      }
+      const bracketMatch = squareBracketed.exec(part);
+      if (bracketMatch) {
+        part = await this.resolve(bracketMatch[1]);
+      }
+      const isArrayAccess = Array.isArray(object) && isFinite(part);
+      const isObjectAccess = object instanceof Object && ((typeof object.hasKey === "function" ? object.hasKey(part) : undefined) || (part in object));
+      const isSpecialAccess = !bracketMatch && object && (Array.isArray(object) || Object.prototype.toString.call(object) === "[object String]") && ["size", "first", "last"].indexOf(part) >= 0;
+      if (isArrayAccess || isObjectAccess) {
+        const evaluated = await this.lookupAndEvaluate(object, part);
+        return this.liquify(evaluated);
+      } else if (isSpecialAccess) {
+        switch (part) {
+          case "size":
+            return this.liquify(object.length);
+          case "first":
+            return this.liquify(object[0]);
+          case "last":
+            return this.liquify(object[object.length - 1]);
+          default:
+            throw new Error("Unknown special accessor: " + part);
+        }
+      }
+    }
+    async variable(markup) {
+      const parts = Liquid.Helpers.scan(markup, Liquid.VariableParser);
+      let firstPart = parts.shift();
+      const match = squareBracketed.exec(firstPart);
+      if (match) {
+        firstPart = match[1];
+      }
+      const object = await this.findVariable(firstPart);
+      if (parts.length === 0) {
+        return object;
+      }
+      const iterator = async (object2, index) => {
+        if (index < parts.length) {
+          const o = await this.mapper(parts[index], object2);
+          return iterator(o, index + 1);
+        } else {
+          return object2;
+        }
+      };
+      try {
+        return iterator(object, 0);
+      } catch (err) {
+        throw new Error("Couldn't walk variable: " + markup + ": " + err);
+      }
+    }
+    lookupAndEvaluate(obj, key) {
+      if (obj instanceof Liquid.Drop) {
+        return obj.get(key);
+      } else {
+        return obj != null ? obj[key] : undefined;
+      }
+    }
+    squashInstanceAssignsWithEnvironments() {
+      const lastScope = this.lastScope();
+      return Object.keys(lastScope).forEach((key) => {
+        return this.environments.some((env) => {
+          if (env.hasOwnProperty(key)) {
+            lastScope[key] = this.lookupAndEvaluate(env, key);
+            return true;
+          }
+        });
+      });
+    }
+    async liquify(object) {
+      if (object == null) {
+        return object;
+      } else if (typeof object.toLiquid === "function") {
+        object = object.toLiquid();
+      } else if (typeof object === "object") {} else if (typeof object === "function") {
+        object = "";
+      } else {
+        Object.prototype.toString.call(object);
+      }
+      if (object instanceof Liquid.Drop) {
+        object.context = this;
+      }
+      return object;
+    }
+  }
+  Context.Literals = {
+    null: null,
+    nil: null,
+    "": null,
+    true: true,
+    false: false
+  };
+  module.exports = Context;
+});
+
+// node_modules/liquid/lib/liquid/tag.js
+var require_tag = __commonJS((exports, module) => {
+  module.exports = class Tag {
+    constructor(template, tagName, markup) {
+      this.template = template;
+      this.tagName = tagName;
+      this.markup = markup;
+    }
+    async parseWithCallbacks(...args) {
+      if (this.beforeParse) {
+        await this.beforeParse.apply(this, args);
+      }
+      await this.parse.apply(this, args);
+      if (this.afterParse) {
+        await this.afterParse.apply(this, args);
+      }
+    }
+    parse() {}
+    name() {
+      return this.constructor.name.toLowerCase();
+    }
+    render() {
+      return "";
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/block.js
+var require_block = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+
+  class Block extends Liquid.Tag {
+    beforeParse() {
+      if (!this.nodelist) {
+        this.nodelist = [];
+      }
+      this.nodelist.length = 0;
+      return this.nodelist.length;
+    }
+    afterParse() {
+      return this.assertMissingDelimitation();
+    }
+    async parse(tokens) {
+      if (tokens.length === 0 || this.ended) {
+        return;
+      }
+      const token = tokens.shift();
+      try {
+        await this.parseToken(token, tokens);
+      } catch (err) {
+        err.message = err.message + `
+    at ` + token.value + " (" + token.filename + ":" + token.line + ":" + token.col + ")";
+        if (!err.location) {
+          err.location = {
+            col: token.col,
+            line: token.line,
+            filename: token.filename
+          };
+        }
+        throw err;
+      }
+      return this.parse(tokens);
+    }
+    async parseToken(token, tokens) {
+      if (Block.IsTag.test(token.value)) {
+        const match = Block.FullToken.exec(token.value);
+        if (!match) {
+          throw new Liquid.SyntaxError("Tag '" + token.value + "' was not properly terminated with regexp: " + Liquid.TagEnd.inspect);
+        }
+        if (this.blockDelimiter() === match[1]) {
+          return this.endTag();
+        }
+        const Tag = this.template.tags[match[1]];
+        if (!Tag) {
+          return this.unknownTag(match[1], match[2], tokens);
+        }
+        const tag = new Tag(this.template, match[1], match[2]);
+        this.nodelist.push(tag);
+        return tag.parseWithCallbacks(tokens);
+      } else if (Block.IsVariable.test(token.value)) {
+        return this.nodelist.push(this.createVariable(token));
+      } else if (token.value.length !== 0) {
+        return this.nodelist.push(token.value);
+      }
+    }
+    endTag() {
+      this.ended = true;
+      return this.ended;
+    }
+    unknownTag(tag, params, tokens) {
+      if (tag === "else") {
+        throw new Liquid.SyntaxError(this.blockName() + " tag does not expect else tag");
+      } else if (tag === "end") {
+        throw new Liquid.SyntaxError("'end' is not a valid delimiter for " + this.blockName() + " tags. use " + this.blockDelimiter());
+      } else {
+        throw new Liquid.SyntaxError("Unknown tag '" + tag + "'");
+      }
+    }
+    blockDelimiter() {
+      return "end" + this.blockName();
+    }
+    blockName() {
+      return this.tagName;
+    }
+    createVariable(token) {
+      const ref = Liquid.Block.ContentOfVariable.exec(token.value);
+      const match = ref != null ? ref[1] : undefined;
+      if (match) {
+        return new Liquid.Variable(match);
+      }
+      throw new Liquid.SyntaxError("Variable '" + token.value + "' was not properly terminated with regexp: " + Liquid.VariableEnd.inspect);
+    }
+    async render(context) {
+      return this.renderAll(this.nodelist, context);
+    }
+    assertMissingDelimitation() {
+      if (!this.ended) {
+        throw new Liquid.SyntaxError(this.blockName() + " tag was never closed");
+      }
+    }
+    async renderAll(list, context) {
+      const accumulator = [];
+      for (const token of list) {
+        if (token && typeof token.render !== "function") {
+          accumulator.push(token);
+          continue;
+        }
+        try {
+          const renderedToken = await token.render(context);
+          accumulator.push(renderedToken);
+        } catch (err) {
+          accumulator.push(context.handleError(err));
+        }
+      }
+      return accumulator;
+    }
+  }
+  Block.IsTag = RegExp("^" + Liquid.TagStart.source);
+  Block.IsVariable = RegExp("^" + Liquid.VariableStart.source);
+  Block.FullToken = RegExp("^" + Liquid.TagStart.source + "\\s*(\\w+)\\s*(.*)?" + Liquid.TagEnd.source + "$");
+  Block.ContentOfVariable = RegExp("^" + Liquid.VariableStart.source + "(.*)" + Liquid.VariableEnd.source + "$");
+  module.exports = Block;
+});
+
+// node_modules/liquid/lib/liquid/document.js
+var require_document = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  module.exports = class Document extends Liquid.Block {
+    constructor(template) {
+      super();
+      this.template = template;
+    }
+    blockDelimiter() {
+      return [];
+    }
+    assertMissingDelimitation() {}
+  };
+});
+
+// node_modules/liquid/lib/promise_reduce.js
+var require_promise_reduce = __commonJS((exports, module) => {
+  module.exports = async function reduce(collection, reducer, value) {
+    const items = await Promise.all(collection);
+    return items.reduce(async (promise, item, index, length) => {
+      const value2 = await promise;
+      return reducer(value2, item, index, length);
+    }, Promise.resolve(value));
+  };
+});
+
+// node_modules/liquid/lib/liquid/variable.js
+var require_variable = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  var PromiseReduce = require_promise_reduce();
+  var VariableNameFragment = RegExp("\\s*(" + Liquid.QuotedFragment.source + ")(.*)");
+  var FilterListFragment = RegExp(Liquid.FilterSeparator.source + "\\s*(.*)");
+  var FilterArgParser = RegExp("(?:" + Liquid.FilterArgumentSeparator.source + "|" + Liquid.ArgumentSeparator.source + ")\\s*(" + Liquid.QuotedFragment.source + ")");
+  var FilterParser = RegExp("(?:" + Liquid.FilterSeparator.source + "|(?:\\s*(?!(?:" + Liquid.FilterSeparator.source + "))(?:" + Liquid.QuotedFragment.source + "|\\S+)\\s*)+)");
+
+  class Variable {
+    constructor(markup) {
+      this.markup = markup;
+      this.name = null;
+      this.filters = [];
+      const match = VariableNameFragment.exec(this.markup);
+      if (!match)
+        return;
+      this.name = match[1];
+      const secondMatch = FilterListFragment.exec(match[2]);
+      if (!secondMatch)
+        return;
+      const filters = Liquid.Helpers.scan(secondMatch[1], Liquid.Variable.FilterParser);
+      filters.forEach((filter) => {
+        const filterMatch = /\s*(\w+)/.exec(filter);
+        if (!filterMatch)
+          return;
+        const filterName = filterMatch[1];
+        const filterArgs = Liquid.Helpers.scan(filter, FilterArgParser);
+        const flattenedArgs = Liquid.Helpers.flatten(filterArgs);
+        return this.filters.push([filterName, flattenedArgs]);
+      });
+    }
+    async render(context) {
+      if (this.name == null) {
+        return "";
+      }
+      const reducer = async (input, filter) => {
+        const filterArgs = filter[1].map((a) => context.get(a));
+        const results = await Promise.all([input].concat(...filterArgs));
+        input = results.shift();
+        try {
+          return context.invoke.apply(context, [filter[0], input].concat(...results));
+        } catch (error) {
+          if (!(error instanceof Liquid.FilterNotFound)) {
+            throw error;
+          }
+          throw new Liquid.FilterNotFound(`Error - filter '${filter[0]}' in '${this.markup}' could not be found.`);
+        }
+      };
+      const value = await context.get(this.name);
+      let filtered;
+      switch (this.filters.length) {
+        case 0:
+          filtered = value;
+          break;
+        case 1:
+          filtered = reducer(value, this.filters[0]);
+          break;
+        default:
+          filtered = PromiseReduce(this.filters, reducer, value);
+      }
+      try {
+        const f = await filtered;
+        if (!(f instanceof Liquid.Drop))
+          return f;
+        f.context = context;
+        return f.toString();
+      } catch (err) {
+        return context.handleError(err);
+      }
+    }
+  }
+  Variable.FilterParser = FilterParser;
+  module.exports = Variable;
+});
+
+// node_modules/liquid/lib/liquid/template.js
+var require_template = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  module.exports = class Template {
+    constructor() {
+      this.registers = {};
+      this.assigns = {};
+      this.instanceAssigns = {};
+      this.tags = {};
+      this.errors = [];
+      this.rethrowErrors = true;
+    }
+    async parse(engine, source = "") {
+      this.engine = engine;
+      source = source.replace(/\n.*?(\{%)-/g, "$1").replace(/-(%\}).*?\n/g, "$1").replace(/\n.*?(\{\{)-/g, "$1").replace(/-(}\}).*?\n/g, "$1");
+      const tokens = this._tokenize(source);
+      this.tags = this.engine.tags;
+      this.root = new Liquid.Document(this);
+      await this.root.parseWithCallbacks(tokens);
+      return this;
+    }
+    async render(assigns, options) {
+      if (!this.root) {
+        throw new Error("No document root. Did you parse the document yet?");
+      }
+      let context;
+      if (assigns instanceof Liquid.Context) {
+        context = assigns;
+      } else if (assigns instanceof Object) {
+        assigns = [assigns, this.assigns];
+        context = new Liquid.Context(this.engine, assigns, this.instanceAssigns, this.registers, this.rethrowErrors);
+      } else if (assigns == null) {
+        context = new Liquid.Context(this.engine, this.assigns, this.instanceAssigns, this.registers, this.rethrowErrors);
+      } else {
+        throw new Error("Expected Object or Liquid::Context as parameter, but was " + typeof assigns + ".");
+      }
+      if (options && options.registers) {
+        const ref = options.registers;
+        for (const key in ref) {
+          if (!Object.prototype.hasOwnProperty.call(ref, key))
+            continue;
+          const value = ref[key];
+          this.registers[key] = value;
+        }
+      }
+      if (options && options.filters) {
+        context.registerFilters.apply(context, options.filters);
+      }
+      const chunks = await this.root.render(context);
+      try {
+        const result = await Liquid.Helpers.toFlatString(chunks);
+        this.errors = context.errors;
+        return result;
+      } catch (err) {
+        this.errors = context.errors;
+        throw err;
+      }
+    }
+    _tokenize(source) {
+      source = String(source);
+      if (source.length === 0) {
+        return [];
+      }
+      const tokens = source.split(Liquid.TemplateParser).filter((token) => token.length > 0);
+      let line = 1;
+      let col = 1;
+      return tokens.map((value) => {
+        const result = { value, col, line };
+        const lastIndex = value.lastIndexOf(`
+`);
+        if (lastIndex < 0) {
+          col += value.length;
+        } else {
+          const linebreaks = value.split(`
+`).length - 1;
+          line += linebreaks;
+          col = value.length - lastIndex;
+        }
+        return result;
+      });
+    }
+  };
+});
+
+// node_modules/strftime/strftime.js
+var require_strftime = __commonJS((exports, module) => {
+  (function() {
+    var DefaultLocale = {
+      days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+      shortDays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+      months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+      shortMonths: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+      AM: "AM",
+      PM: "PM",
+      am: "am",
+      pm: "pm",
+      formats: {
+        D: "%m/%d/%y",
+        F: "%Y-%m-%d",
+        R: "%H:%M",
+        T: "%H:%M:%S",
+        X: "%T",
+        c: "%a %b %d %X %Y",
+        r: "%I:%M:%S %p",
+        v: "%e-%b-%Y",
+        x: "%D"
+      }
+    }, defaultStrftime = new Strftime(DefaultLocale, 0, false), isCommonJS = typeof module !== "undefined", namespace;
+    if (isCommonJS) {
+      namespace = module.exports = adaptedStrftime;
+      namespace.strftime = deprecatedStrftime;
+    } else {
+      namespace = function() {
+        return this || (1, eval)("this");
+      }();
+      namespace.strftime = adaptedStrftime;
+    }
+    var _require = isCommonJS ? "require('strftime')" : "strftime";
+    var _deprecationWarnings = {};
+    function deprecationWarning(name, instead) {
+      if (!_deprecationWarnings[name]) {
+        if (typeof console !== "undefined" && typeof console.warn == "function") {
+          console.warn("[WARNING] " + name + " is deprecated and will be removed in version 1.0. Instead, use `" + instead + "`.");
+        }
+        _deprecationWarnings[name] = true;
+      }
+    }
+    namespace.strftimeTZ = deprecatedStrftimeTZ;
+    namespace.strftimeUTC = deprecatedStrftimeUTC;
+    namespace.localizedStrftime = deprecatedStrftimeLocalized;
+    function adaptForwards(fn) {
+      fn.localize = defaultStrftime.localize.bind(defaultStrftime);
+      fn.timezone = defaultStrftime.timezone.bind(defaultStrftime);
+      fn.utc = defaultStrftime.utc.bind(defaultStrftime);
+    }
+    adaptForwards(adaptedStrftime);
+    function adaptedStrftime(fmt, d, locale) {
+      if (d && d.days) {
+        locale = d;
+        d = undefined;
+      }
+      if (locale) {
+        deprecationWarning("`" + _require + "(format, [date], [locale])`", "var s = " + _require + ".localize(locale); s(format, [date])");
+      }
+      var strftime = locale ? defaultStrftime.localize(locale) : defaultStrftime;
+      return strftime(fmt, d);
+    }
+    adaptForwards(deprecatedStrftime);
+    function deprecatedStrftime(fmt, d, locale) {
+      if (locale) {
+        deprecationWarning("`" + _require + ".strftime(format, [date], [locale])`", "var s = " + _require + ".localize(locale); s(format, [date])");
+      } else {
+        deprecationWarning("`" + _require + ".strftime(format, [date])`", _require + "(format, [date])");
+      }
+      var strftime = locale ? defaultStrftime.localize(locale) : defaultStrftime;
+      return strftime(fmt, d);
+    }
+    function deprecatedStrftimeTZ(fmt, d, locale, timezone) {
+      if ((typeof locale == "number" || typeof locale == "string") && timezone == null) {
+        timezone = locale;
+        locale = undefined;
+      }
+      if (locale) {
+        deprecationWarning("`" + _require + ".strftimeTZ(format, date, locale, tz)`", "var s = " + _require + ".localize(locale).timezone(tz); s(format, [date])` or `var s = " + _require + ".localize(locale); s.timezone(tz)(format, [date])");
+      } else {
+        deprecationWarning("`" + _require + ".strftimeTZ(format, date, tz)`", "var s = " + _require + ".timezone(tz); s(format, [date])` or `" + _require + ".timezone(tz)(format, [date])");
+      }
+      var strftime = (locale ? defaultStrftime.localize(locale) : defaultStrftime).timezone(timezone);
+      return strftime(fmt, d);
+    }
+    var utcStrftime = defaultStrftime.utc();
+    function deprecatedStrftimeUTC(fmt, d, locale) {
+      if (locale) {
+        deprecationWarning("`" + _require + ".strftimeUTC(format, date, locale)`", "var s = " + _require + ".localize(locale).utc(); s(format, [date])");
+      } else {
+        deprecationWarning("`" + _require + ".strftimeUTC(format, [date])`", "var s = " + _require + ".utc(); s(format, [date])");
+      }
+      var strftime = locale ? utcStrftime.localize(locale) : utcStrftime;
+      return strftime(fmt, d);
+    }
+    function deprecatedStrftimeLocalized(locale) {
+      deprecationWarning("`" + _require + ".localizedStrftime(locale)`", _require + ".localize(locale)");
+      return defaultStrftime.localize(locale);
+    }
+    if (typeof Date.now !== "function") {
+      Date.now = function() {
+        return +new Date;
+      };
+    }
+    function Strftime(locale, customTimezoneOffset, useUtcTimezone) {
+      var _locale = locale || DefaultLocale, _customTimezoneOffset = customTimezoneOffset || 0, _useUtcBasedDate = useUtcTimezone || false, _cachedDateTimestamp = 0, _cachedDate;
+      function _strftime(format, date) {
+        var timestamp;
+        if (!date) {
+          var currentTimestamp = Date.now();
+          if (currentTimestamp > _cachedDateTimestamp) {
+            _cachedDateTimestamp = currentTimestamp;
+            _cachedDate = new Date(_cachedDateTimestamp);
+            timestamp = _cachedDateTimestamp;
+            if (_useUtcBasedDate) {
+              _cachedDate = new Date(_cachedDateTimestamp + getTimestampToUtcOffsetFor(_cachedDate) + _customTimezoneOffset);
+            }
+          } else {
+            timestamp = _cachedDateTimestamp;
+          }
+          date = _cachedDate;
+        } else {
+          timestamp = date.getTime();
+          if (_useUtcBasedDate) {
+            date = new Date(date.getTime() + getTimestampToUtcOffsetFor(date) + _customTimezoneOffset);
+          }
+        }
+        return _processFormat(format, date, _locale, timestamp);
+      }
+      function _processFormat(format, date, locale2, timestamp) {
+        var resultString = "", padding = null, isInScope = false, length = format.length, extendedTZ = false;
+        for (var i = 0;i < length; i++) {
+          var currentCharCode = format.charCodeAt(i);
+          if (isInScope === true) {
+            if (currentCharCode === 45) {
+              padding = "";
+              continue;
+            } else if (currentCharCode === 95) {
+              padding = " ";
+              continue;
+            } else if (currentCharCode === 48) {
+              padding = "0";
+              continue;
+            } else if (currentCharCode === 58) {
+              if (extendedTZ) {
+                if (typeof console !== "undefined" && typeof console.warn == "function") {
+                  console.warn("[WARNING] detected use of unsupported %:: or %::: modifiers to strftime");
+                }
+              }
+              extendedTZ = true;
+              continue;
+            }
+            switch (currentCharCode) {
+              case 65:
+                resultString += locale2.days[date.getDay()];
+                break;
+              case 66:
+                resultString += locale2.months[date.getMonth()];
+                break;
+              case 67:
+                resultString += padTill2(Math.floor(date.getFullYear() / 100), padding);
+                break;
+              case 68:
+                resultString += _processFormat(locale2.formats.D, date, locale2, timestamp);
+                break;
+              case 70:
+                resultString += _processFormat(locale2.formats.F, date, locale2, timestamp);
+                break;
+              case 72:
+                resultString += padTill2(date.getHours(), padding);
+                break;
+              case 73:
+                resultString += padTill2(hours12(date.getHours()), padding);
+                break;
+              case 76:
+                resultString += padTill3(Math.floor(timestamp % 1000));
+                break;
+              case 77:
+                resultString += padTill2(date.getMinutes(), padding);
+                break;
+              case 80:
+                resultString += date.getHours() < 12 ? locale2.am : locale2.pm;
+                break;
+              case 82:
+                resultString += _processFormat(locale2.formats.R, date, locale2, timestamp);
+                break;
+              case 83:
+                resultString += padTill2(date.getSeconds(), padding);
+                break;
+              case 84:
+                resultString += _processFormat(locale2.formats.T, date, locale2, timestamp);
+                break;
+              case 85:
+                resultString += padTill2(weekNumber(date, "sunday"), padding);
+                break;
+              case 87:
+                resultString += padTill2(weekNumber(date, "monday"), padding);
+                break;
+              case 88:
+                resultString += _processFormat(locale2.formats.X, date, locale2, timestamp);
+                break;
+              case 89:
+                resultString += date.getFullYear();
+                break;
+              case 90:
+                if (_useUtcBasedDate && _customTimezoneOffset === 0) {
+                  resultString += "GMT";
+                } else {
+                  var tzString = date.toString().match(/\(([\w\s]+)\)/);
+                  resultString += tzString && tzString[1] || "";
+                }
+                break;
+              case 97:
+                resultString += locale2.shortDays[date.getDay()];
+                break;
+              case 98:
+                resultString += locale2.shortMonths[date.getMonth()];
+                break;
+              case 99:
+                resultString += _processFormat(locale2.formats.c, date, locale2, timestamp);
+                break;
+              case 100:
+                resultString += padTill2(date.getDate(), padding);
+                break;
+              case 101:
+                resultString += padTill2(date.getDate(), padding == null ? " " : padding);
+                break;
+              case 104:
+                resultString += locale2.shortMonths[date.getMonth()];
+                break;
+              case 106:
+                var y = new Date(date.getFullYear(), 0, 1);
+                var day = Math.ceil((date.getTime() - y.getTime()) / (1000 * 60 * 60 * 24));
+                resultString += padTill3(day);
+                break;
+              case 107:
+                resultString += padTill2(date.getHours(), padding == null ? " " : padding);
+                break;
+              case 108:
+                resultString += padTill2(hours12(date.getHours()), padding == null ? " " : padding);
+                break;
+              case 109:
+                resultString += padTill2(date.getMonth() + 1, padding);
+                break;
+              case 110:
+                resultString += `
+`;
+                break;
+              case 111:
+                resultString += String(date.getDate()) + ordinal(date.getDate());
+                break;
+              case 112:
+                resultString += date.getHours() < 12 ? locale2.AM : locale2.PM;
+                break;
+              case 114:
+                resultString += _processFormat(locale2.formats.r, date, locale2, timestamp);
+                break;
+              case 115:
+                resultString += Math.floor(timestamp / 1000);
+                break;
+              case 116:
+                resultString += "\t";
+                break;
+              case 117:
+                var day = date.getDay();
+                resultString += day === 0 ? 7 : day;
+                break;
+              case 118:
+                resultString += _processFormat(locale2.formats.v, date, locale2, timestamp);
+                break;
+              case 119:
+                resultString += date.getDay();
+                break;
+              case 120:
+                resultString += _processFormat(locale2.formats.x, date, locale2, timestamp);
+                break;
+              case 121:
+                resultString += ("" + date.getFullYear()).slice(2);
+                break;
+              case 122:
+                if (_useUtcBasedDate && _customTimezoneOffset === 0) {
+                  resultString += extendedTZ ? "+00:00" : "+0000";
+                } else {
+                  var off;
+                  if (_customTimezoneOffset !== 0) {
+                    off = _customTimezoneOffset / (60 * 1000);
+                  } else {
+                    off = -date.getTimezoneOffset();
+                  }
+                  var sign = off < 0 ? "-" : "+";
+                  var sep = extendedTZ ? ":" : "";
+                  var hours = Math.floor(Math.abs(off / 60));
+                  var mins = Math.abs(off % 60);
+                  resultString += sign + padTill2(hours) + sep + padTill2(mins);
+                }
+                break;
+              default:
+                resultString += format[i];
+                break;
+            }
+            padding = null;
+            isInScope = false;
+            continue;
+          }
+          if (currentCharCode === 37) {
+            isInScope = true;
+            continue;
+          }
+          resultString += format[i];
+        }
+        return resultString;
+      }
+      var strftime = _strftime;
+      strftime.localize = function(locale2) {
+        return new Strftime(locale2 || _locale, _customTimezoneOffset, _useUtcBasedDate);
+      };
+      strftime.timezone = function(timezone) {
+        var customTimezoneOffset2 = _customTimezoneOffset;
+        var useUtcBasedDate = _useUtcBasedDate;
+        var timezoneType = typeof timezone;
+        if (timezoneType === "number" || timezoneType === "string") {
+          useUtcBasedDate = true;
+          if (timezoneType === "string") {
+            var sign = timezone[0] === "-" ? -1 : 1, hours = parseInt(timezone.slice(1, 3), 10), minutes = parseInt(timezone.slice(3, 5), 10);
+            customTimezoneOffset2 = sign * (60 * hours + minutes) * 60 * 1000;
+          } else if (timezoneType === "number") {
+            customTimezoneOffset2 = timezone * 60 * 1000;
+          }
+        }
+        return new Strftime(_locale, customTimezoneOffset2, useUtcBasedDate);
+      };
+      strftime.utc = function() {
+        return new Strftime(_locale, _customTimezoneOffset, true);
+      };
+      return strftime;
+    }
+    function padTill2(numberToPad, paddingChar) {
+      if (paddingChar === "" || numberToPad > 9) {
+        return numberToPad;
+      }
+      if (paddingChar == null) {
+        paddingChar = "0";
+      }
+      return paddingChar + numberToPad;
+    }
+    function padTill3(numberToPad) {
+      if (numberToPad > 99) {
+        return numberToPad;
+      }
+      if (numberToPad > 9) {
+        return "0" + numberToPad;
+      }
+      return "00" + numberToPad;
+    }
+    function hours12(hour) {
+      if (hour === 0) {
+        return 12;
+      } else if (hour > 12) {
+        return hour - 12;
+      }
+      return hour;
+    }
+    function weekNumber(date, firstWeekday) {
+      firstWeekday = firstWeekday || "sunday";
+      var weekday = date.getDay();
+      if (firstWeekday === "monday") {
+        if (weekday === 0)
+          weekday = 6;
+        else
+          weekday--;
+      }
+      var firstDayOfYearUtc = Date.UTC(date.getFullYear(), 0, 1), dateUtc = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()), yday = Math.floor((dateUtc - firstDayOfYearUtc) / 86400000), weekNum = (yday + 7 - weekday) / 7;
+      return Math.floor(weekNum);
+    }
+    function ordinal(number) {
+      var i = number % 10;
+      var ii = number % 100;
+      if (ii >= 11 && ii <= 13 || i === 0 || i >= 4) {
+        return "th";
+      }
+      switch (i) {
+        case 1:
+          return "st";
+        case 2:
+          return "nd";
+        case 3:
+          return "rd";
+      }
+    }
+    function getTimestampToUtcOffsetFor(date) {
+      return (date.getTimezoneOffset() || 0) * 60000;
+    }
+  })();
+});
+
+// node_modules/liquid/lib/liquid/standard_filters.js
+var require_standard_filters = __commonJS((exports, module) => {
+  var strftime = require_strftime();
+  var Iterable = require_iterable();
+  var flatten = require_helpers().flatten;
+  var toObjectString = Object.prototype.toString;
+  var hasOwnProperty = Object.prototype.hasOwnProperty;
+  var isString = (input) => toObjectString.call(input) === "[object String]";
+  var isArray = (input) => Array.isArray(input);
+  var isArguments = (input) => toObjectString(input) === "[object Arguments]";
+  var isNumber = (input) => !isArray(input) && input - parseFloat(input) >= 0;
+  var toString = (input) => {
+    if (input == null) {
+      return "";
+    } else if (isString(input)) {
+      return input;
+    } else if (typeof input.toString === "function") {
+      return toString(input.toString());
+    } else {
+      return toObjectString.call(input);
+    }
+  };
+  var toIterable = (input) => Iterable.cast(input);
+  var toDate = (input) => {
+    if (input == null) {
+      return;
+    }
+    if (input instanceof Date) {
+      return input;
+    }
+    if (input === "now") {
+      return new Date;
+    }
+    if (isNumber(input)) {
+      input = parseInt(input);
+    } else {
+      input = toString(input);
+      if (input.length === 0) {
+        return;
+      }
+      input = Date.parse(input);
+    }
+    if (input != null) {
+      return new Date(input);
+    }
+  };
+  var has = (input, key) => input != null && hasOwnProperty.call(input, key);
+  var isEmpty = (input) => {
+    if (input == null) {
+      return true;
+    }
+    if (isArray(input) || isString(input) || isArguments(input)) {
+      return input.length === 0;
+    }
+    for (const key in input) {
+      if (has(key, input)) {
+        return false;
+      }
+    }
+    return true;
+  };
+  var isBlank = (input) => !(isNumber(input) || input === true) && isEmpty(input);
+  var HTML_ESCAPE = (chr) => {
+    switch (chr) {
+      case "&":
+        return "&amp;";
+      case ">":
+        return "&gt;";
+      case "<":
+        return "&lt;";
+      case '"':
+        return "&quot;";
+      case "'":
+        return "&#39;";
+    }
+  };
+  var HTML_ESCAPE_ONCE_REGEXP = /["><']|&(?!([a-zA-Z]+|(#\d+));)/g;
+  var HTML_ESCAPE_REGEXP = /([&><"'])/g;
+  module.exports = {
+    size: function(input) {
+      return input != null && input.length != null ? input.length : 0;
+    },
+    downcase: function(input) {
+      return toString(input).toLowerCase();
+    },
+    upcase: function(input) {
+      return toString(input).toUpperCase();
+    },
+    append: function(input, suffix) {
+      return toString(input) + toString(suffix);
+    },
+    prepend: function(input, prefix) {
+      return toString(prefix) + toString(input);
+    },
+    empty: function(input) {
+      return isEmpty(input);
+    },
+    capitalize: function(input) {
+      return toString(input).replace(/^([a-z])/, (m, chr) => chr.toUpperCase());
+    },
+    sort: async function(input, property) {
+      if (property == null) {
+        return toIterable(input).sort();
+      }
+      const array = await toIterable(input).map((item) => ({
+        key: item != null ? item[property] : undefined,
+        item
+      }));
+      return array.sort((a, b) => {
+        if (a.key > b.key)
+          return 1;
+        if (a.key < b.key)
+          return -1;
+        return 0;
+      }).map((a) => a.item);
+    },
+    map: function(input, property) {
+      if (property == null) {
+        return input;
+      }
+      return toIterable(input).map(function(e) {
+        return e != null ? e[property] : undefined;
+      });
+    },
+    escape: function(input) {
+      return toString(input).replace(HTML_ESCAPE_REGEXP, HTML_ESCAPE);
+    },
+    escape_once: function(input) {
+      return toString(input).replace(HTML_ESCAPE_ONCE_REGEXP, HTML_ESCAPE);
+    },
+    strip_html: function(input) {
+      return toString(input).replace(/<script[\s\S]*?<\/script>/g, "").replace(/<!--[\s\S]*?-->/g, "").replace(/<style[\s\S]*?<\/style>/g, "").replace(/<[^>]*?>/g, "");
+    },
+    strip_newlines: function(input) {
+      return toString(input).replace(/\r?\n/g, "");
+    },
+    newline_to_br: function(input) {
+      return toString(input).replace(/\n/g, `<br />
+`);
+    },
+    replace: function(input, string, replacement) {
+      if (replacement == null) {
+        replacement = "";
+      }
+      return toString(input).replace(new RegExp(string, "g"), replacement);
+    },
+    replace_first: function(input, string, replacement) {
+      if (replacement == null) {
+        replacement = "";
+      }
+      return toString(input).replace(string, replacement);
+    },
+    remove: function(input, string) {
+      return this.replace(input, string);
+    },
+    remove_first: function(input, string) {
+      return this.replace_first(input, string);
+    },
+    truncate: function(input, length = 50, truncateString = "...") {
+      input = toString(input);
+      truncateString = toString(truncateString);
+      length = Number(length);
+      const l = Math.max(0, length - truncateString.length);
+      if (input.length > length) {
+        return input.slice(0, l) + truncateString;
+      } else {
+        return input;
+      }
+    },
+    truncatewords: function(input, words = 15, truncateString = "...") {
+      input = toString(input);
+      const wordlist = input.split(" ");
+      words = Math.max(1, Number(words));
+      if (wordlist.length > words) {
+        return wordlist.slice(0, words).join(" ") + truncateString;
+      } else {
+        return input;
+      }
+    },
+    split: function(input, pattern) {
+      input = toString(input);
+      if (!input) {
+        return;
+      }
+      return input.split(pattern);
+    },
+    flatten: function(input) {
+      const array = toIterable(input).toArray();
+      return flatten(array);
+    },
+    join: function(input, glue = " ") {
+      const array = this.flatten(input);
+      return array.join(glue);
+    },
+    first: function(input) {
+      return toIterable(input).first();
+    },
+    last: function(input) {
+      return toIterable(input).last();
+    },
+    plus: function(input, operand) {
+      return Number(input) + Number(operand);
+    },
+    minus: function(input, operand) {
+      return Number(input) - Number(operand);
+    },
+    times: function(input, operand) {
+      return Number(input) * Number(operand);
+    },
+    dividedBy: function(input, operand) {
+      return Number(input) / Number(operand);
+    },
+    divided_by: function(input, operand) {
+      return this.dividedBy(input, operand);
+    },
+    round: function(input, operand) {
+      return Number(input).toFixed(operand);
+    },
+    modulo: function(input, operand) {
+      return Number(input) % Number(operand);
+    },
+    date: function(input, format) {
+      input = toDate(input);
+      if (input == null) {
+        return "";
+      } else if (toString(format).length === 0) {
+        return input.toUTCString();
+      } else {
+        return strftime(format, input);
+      }
+    },
+    default: function(input, defaultValue) {
+      if (arguments.length < 2) {
+        defaultValue = "";
+      }
+      const blank = input && typeof input.isBlank === "function" ? input.isBlank() : isBlank(input);
+      if (blank) {
+        return defaultValue;
+      } else {
+        return input;
+      }
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/condition.js
+var require_condition = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  var LITERALS = {
+    empty: (v) => !((v != null ? v.length : undefined) > 0),
+    blank: (v) => !v || v.toString().length === 0
+  };
+  var operators = {
+    "==": (cond, left, right) => cond.equalVariables(left, right),
+    is: (cond, left, right) => cond.equalVariables(left, right),
+    "!=": (cond, left, right) => !cond.equalVariables(left, right),
+    "<>": (cond, left, right) => !cond.equalVariables(left, right),
+    isnt: (cond, left, right) => !cond.equalVariables(left, right),
+    "<": (cond, left, right) => left < right,
+    ">": (cond, left, right) => left > right,
+    "<=": (cond, left, right) => left <= right,
+    ">=": (cond, left, right) => left >= right,
+    contains: (cond, left, right) => {
+      if (left == null)
+        return;
+      if (typeof left.indexOf === "function")
+        return left.indexOf(right) >= 0;
+    }
+  };
+
+  class Condition {
+    constructor(left, operator, right) {
+      this.left = left;
+      this.operator = operator;
+      this.right = right;
+      this.childRelation = null;
+      this.childCondition = null;
+    }
+    async evaluate(context = new Liquid.Context) {
+      const result = await this.interpretCondition(this.left, this.right, this.operator, context);
+      switch (this.childRelation) {
+        case "or":
+          return result || this.childCondition.evaluate(context);
+        case "and":
+          return result && this.childCondition.evaluate(context);
+        default:
+          return result;
+      }
+    }
+    or(childCondition) {
+      this.childCondition = childCondition;
+      this.childRelation = "or";
+      return this.childRelation;
+    }
+    and(childCondition) {
+      this.childCondition = childCondition;
+      this.childRelation = "and";
+      return this.childRelation;
+    }
+    attach(attachment) {
+      this.attachment = attachment;
+      return this.attachment;
+    }
+    equalVariables(left, right) {
+      if (typeof left === "function") {
+        return left(right);
+      } else if (typeof right === "function") {
+        return right(left);
+      } else {
+        return left === right;
+      }
+    }
+    async resolveVariable(key, context) {
+      if (key in LITERALS) {
+        return LITERALS[key];
+      } else {
+        return context.get(key);
+      }
+    }
+    async interpretCondition(left, right, op, context) {
+      if (!op) {
+        return this.resolveVariable(left, context);
+      }
+      const operation = Condition.operators[op];
+      if (!operation) {
+        throw new Error("Unknown operator " + op);
+      }
+      const [resolvedLeft, resolvedRight] = await Promise.all([
+        this.resolveVariable(left, context),
+        this.resolveVariable(right, context)
+      ]);
+      return operation(this, resolvedLeft, resolvedRight);
+    }
+  }
+  Condition.operators = operators;
+  module.exports = Condition;
+});
+
+// node_modules/liquid/lib/liquid/else_condition.js
+var require_else_condition = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  module.exports = class ElseCondition extends Liquid.Condition {
+    evaluate() {
+      return true;
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/blank_file_system.js
+var require_blank_file_system = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  module.exports = class BlankFileSystem {
+    async readTemplateFile() {
+      throw new Liquid.FileSystemError("This file system doesn't allow includes");
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/local_file_system.js
+var require_local_file_system = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  var fs = __require("fs");
+  var path2 = __require("path");
+  var { promisify } = __require("util");
+  var readFile = promisify(fs.readFile);
+  var PathPattern = /^[^./][a-zA-Z0-9-_/]+$/;
+  module.exports = class LocalFileSystem extends Liquid.BlankFileSystem {
+    constructor(root, extension) {
+      super();
+      if (extension == null) {
+        extension = "html";
+      }
+      this.root = root;
+      this.fileExtension = extension;
+    }
+    async readTemplateFile(templatePath) {
+      const fullPath = await this.fullPath(templatePath);
+      try {
+        const contents = await readFile(fullPath, "utf8");
+        return contents;
+      } catch (err) {
+        throw new Liquid.FileSystemError("Error loading template: " + err.message);
+      }
+    }
+    async fullPath(templatePath) {
+      if (PathPattern.test(templatePath)) {
+        return path2.resolve(path2.join(this.root, templatePath + ("." + this.fileExtension)));
+      } else {
+        throw new Liquid.ArgumentError(`Illegal template name '${templatePath}'`);
+      }
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/tags/assign.js
+var require_assign = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  var SyntaxHelp = "Syntax Error in 'assign' - Valid syntax: assign [var] = [source]";
+  var Syntax = RegExp("((?:" + Liquid.VariableSignature.source + ")+)\\s*=\\s*(.*)\\s*");
+  module.exports = class Assign extends Liquid.Tag {
+    constructor(template, tagName, markup) {
+      super(template, tagName, markup);
+      const match = Syntax.exec(markup);
+      if (match) {
+        this.to = match[1];
+        this.from = new Liquid.Variable(match[2]);
+      } else {
+        throw new Liquid.SyntaxError(SyntaxHelp);
+      }
+    }
+    async render(context) {
+      context.lastScope()[this.to] = this.from.render(context);
+      return super.render.call(this, context);
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/tags/capture.js
+var require_capture = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  var Syntax = /(\w+)/;
+  var SyntaxHelp = "Syntax Error in 'capture' - Valid syntax: capture [var]";
+  module.exports = class Capture extends Liquid.Block {
+    constructor(template, tagName, markup) {
+      super(template, tagName, markup);
+      const match = Syntax.exec(markup);
+      if (match) {
+        this.to = match[1];
+      } else {
+        throw new Liquid.SyntaxError(SyntaxHelp);
+      }
+    }
+    async render(context) {
+      const chunks = await super.render(context);
+      const output = Liquid.Helpers.toFlatString(chunks);
+      context.lastScope()[this.to] = output;
+      return "";
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/tags/case.js
+var require_case = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  var PromiseReduce = require_promise_reduce();
+  var SyntaxHelp = "Syntax Error in tag 'case' - Valid syntax: case [expression]";
+  var Syntax = RegExp("(" + Liquid.QuotedFragment.source + ")");
+  var WhenSyntax = RegExp("(" + Liquid.QuotedFragment.source + ")(?:(?:\\s+or\\s+|\\s*\\,\\s*)(" + Liquid.QuotedFragment.source + "))?");
+  module.exports = class Case extends Liquid.Block {
+    constructor(template, tagName, markup) {
+      super(template, tagName, markup);
+      const match = Syntax.exec(markup);
+      if (!match) {
+        throw new Liquid.SyntaxError(SyntaxHelp);
+      }
+      this.blocks = [];
+    }
+    unknownTag(tag, markup) {
+      if (tag === "when" || tag === "else") {
+        return this.pushBlock(tag, markup);
+      } else {
+        return super.unknownTag(tag, markup);
+      }
+    }
+    pushBlock(tag, markup) {
+      if (tag === "else") {
+        const block = new Liquid.ElseCondition;
+        this.blocks.push(block);
+        this.nodelist = block.attach([]);
+        return this.nodelist;
+      }
+      const expressions = Liquid.Helpers.scan(markup, WhenSyntax);
+      const nodelist = [];
+      const ref = expressions[0];
+      const results = [];
+      for (const value of ref) {
+        if (value) {
+          const block = new Liquid.Condition(this.markup, "==", value);
+          this.blocks.push(block);
+          results.push(this.nodelist = block.attach(nodelist));
+        } else {
+          results.push(undefined);
+        }
+      }
+      return results;
+    }
+    async render(context) {
+      const block = await PromiseReduce(this.blocks, async (chosenBlock, block2) => {
+        if (chosenBlock != null)
+          return chosenBlock;
+        const ok = await block2.evaluate(context);
+        if (ok)
+          return block2;
+      }, null);
+      return context.stack(() => {
+        return block != null ? this.renderAll(block.attachment, context) : "";
+      });
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/tags/raw.js
+var require_raw = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  module.exports = class Raw extends Liquid.Block {
+    async parse(tokens) {
+      if (tokens.length === 0 || this.ended) {
+        return;
+      }
+      const token = tokens.shift();
+      const match = Liquid.Block.FullToken.exec(token.value);
+      if ((match != null ? match[1] : undefined) === this.blockDelimiter()) {
+        return this.endTag();
+      }
+      this.nodelist.push(token.value);
+      return this.parse(tokens);
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/tags/comment.js
+var require_comment = __commonJS((exports, module) => {
+  var Raw = require_raw();
+  module.exports = class Comment extends Raw {
+    render() {
+      return "";
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/tags/decrement.js
+var require_decrement = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  module.exports = class Decrement extends Liquid.Tag {
+    constructor(template, tagName, markup) {
+      super(template, tagName, markup);
+      this.variable = markup.trim();
+    }
+    render(context) {
+      const base = context.environments[0];
+      if (!base[this.variable])
+        base[this.variable] = 0;
+      const value = base[this.variable] - 1;
+      context.environments[0][this.variable] = value;
+      return value.toString();
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/tags/for.js
+var require_for = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  var PromiseReduce = require_promise_reduce();
+  var Iterable = require_iterable();
+  var SyntaxHelp = "Syntax Error in 'for loop' - Valid syntax: for [item] in [collection]";
+  var Syntax = RegExp("(\\w+)\\s+in\\s+((?:" + Liquid.QuotedFragment.source + ")+)\\s*(reversed)?");
+  module.exports = class For extends Liquid.Block {
+    constructor(template, tagName, markup) {
+      super(template, tagName, markup);
+      const match = Syntax.exec(markup);
+      if (!match) {
+        throw new Liquid.SyntaxError(SyntaxHelp);
+      }
+      this.variableName = match[1];
+      this.collectionName = match[2];
+      this.registerName = match[1] + "=" + match[2];
+      this.reversed = match[3];
+      this.attributes = {};
+      this.nodelist = this.forBlock = [];
+      Liquid.Helpers.scan(markup, Liquid.TagAttributes).forEach((attr) => {
+        this.attributes[attr[0]] = attr[1];
+      });
+    }
+    unknownTag(tag, markup) {
+      if (tag !== "else") {
+        return super.unknownTag(tag, markup);
+      }
+      this.nodelist = this.elseBlock = [];
+      return this.nodelist;
+    }
+    renderElse(context) {
+      if (this.elseBlock) {
+        return this.renderAll(this.elseBlock, context);
+      } else {
+        return "";
+      }
+    }
+    sliceCollection(collection, from, to) {
+      const args = [from];
+      if (to != null) {
+        args.push(to);
+      }
+      const ref = Iterable.cast(collection);
+      return ref.slice.apply(ref, args);
+    }
+    async render(context) {
+      if (!context.registers.for)
+        context.registers.for = {};
+      let collection = await context.get(this.collectionName);
+      if (collection != null ? collection.forEach : undefined) {} else if (collection instanceof Object) {
+        const results = [];
+        for (const key in collection) {
+          if (!Object.prototype.hasOwnProperty.call(collection, key)) {
+            continue;
+          }
+          const v = collection[key];
+          results.push([key, v]);
+        }
+        collection = results;
+      } else {
+        return this.renderElse(context);
+      }
+      const from = this.attributes.offset === "continue" ? Number(context.registers.for[this.registerName]) || 0 : Number(this.attributes.offset) || 0;
+      const limit = this.attributes.limit;
+      const to = limit ? Number(limit) + from : null;
+      const segment = await this.sliceCollection(collection, from, to);
+      if (segment.length === 0) {
+        return this.renderElse(context);
+      }
+      if (this.reversed) {
+        segment.reverse();
+      }
+      const length = segment.length;
+      context.registers.for[this.registerName] = from + segment.length;
+      return context.stack(() => {
+        return PromiseReduce(segment, async (output, item, index) => {
+          context.set(this.variableName, item);
+          context.set("forloop", {
+            name: this.registerName,
+            length,
+            index: index + 1,
+            index0: index,
+            rindex: length - index,
+            rindex0: length - index - 1,
+            first: index === 0,
+            last: index === length - 1
+          });
+          try {
+            const rendered = await this.renderAll(this.forBlock, context);
+            output.push(rendered);
+          } catch (err) {
+            output.push(context.handleError(err));
+          }
+          return output;
+        }, []);
+      });
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/tags/if.js
+var require_if = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  var PromiseReduce = require_promise_reduce();
+  var SyntaxHelp = "Syntax Error in tag 'if' - Valid syntax: if [expression]";
+  var Syntax = RegExp("(" + Liquid.QuotedFragment.source + ")\\s*([=!<>a-z_]+)?\\s*(" + Liquid.QuotedFragment.source + ")?");
+  var ExpressionsAndOperators = RegExp("(?:\\b(?:\\s?and\\s?|\\s?or\\s?)\\b|(?:\\s*(?!\\b(?:\\s?and\\s?|\\s?or\\s?)\\b)(?:" + Liquid.QuotedFragment.source + "|\\S+)\\s*)+)");
+  module.exports = class If extends Liquid.Block {
+    constructor(template, tagName, markup) {
+      super(template, tagName, markup);
+      this.blocks = [];
+      this.pushBlock("if", markup);
+    }
+    unknownTag(tag, markup) {
+      if (tag === "elsif" || tag === "else") {
+        return this.pushBlock(tag, markup);
+      } else {
+        return super.unknownTag(tag, markup);
+      }
+    }
+    defineBlock(tag, markup) {
+      if (tag === "else") {
+        return new Liquid.ElseCondition;
+      }
+      const expressions = Liquid.Helpers.scan(markup, ExpressionsAndOperators).reverse();
+      const match = Syntax.exec(expressions.shift());
+      if (!match) {
+        throw new Liquid.SyntaxError(SyntaxHelp);
+      }
+      let condition = new Liquid.Condition(...match.slice(1, 4));
+      while (expressions.length > 0) {
+        const operator = String(expressions.shift()).trim();
+        const newMatch = Syntax.exec(expressions.shift());
+        if (!newMatch) {
+          throw new SyntaxError(SyntaxHelp);
+        }
+        const newCondition = new Liquid.Condition(...newMatch.slice(1, 4));
+        newCondition[operator].call(newCondition, condition);
+        condition = newCondition;
+      }
+      return condition;
+    }
+    pushBlock(tag, markup) {
+      const block = this.defineBlock(tag, markup);
+      this.blocks.push(block);
+      this.nodelist = block.attach([]);
+    }
+    async render(context) {
+      const block = await PromiseReduce(this.blocks, async (chosenBlock, block2) => {
+        if (chosenBlock != null)
+          return chosenBlock;
+        let ok = await block2.evaluate(context);
+        if (block2.negate)
+          ok = !ok;
+        if (ok)
+          return block2;
+      }, null);
+      return context.stack(async () => {
+        if (block != null) {
+          return this.renderAll(block.attachment, context);
+        } else {
+          return "";
+        }
+      });
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/tags/ifchanged.js
+var require_ifchanged = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  module.exports = class IfChanged extends Liquid.Block {
+    async render(context) {
+      return context.stack(async () => {
+        const rendered = await this.renderAll(this.nodelist, context);
+        const output = Liquid.Helpers.toFlatString(rendered);
+        if (output !== context.registers.ifchanged) {
+          context.registers.ifchanged = output;
+          return context.registers.ifchanged;
+        } else {
+          return "";
+        }
+      });
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/tags/increment.js
+var require_increment = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  module.exports = class Increment extends Liquid.Tag {
+    constructor(template, tagName, markup) {
+      super(template, tagName, markup);
+      this.variable = markup.trim();
+    }
+    render(context) {
+      const base = context.environments[0];
+      if (!base[this.variable])
+        base[this.variable] = 0;
+      const value = base[this.variable];
+      context.environments[0][this.variable] = value + 1;
+      return value.toString();
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/tags/unless.js
+var require_unless = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  module.exports = class Unless extends Liquid.If {
+    async parse(tokens) {
+      await super.parse(tokens);
+      this.blocks[0].negate = true;
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/tags/include.js
+var require_include = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  var Syntax = /((?:{{2}\s?)?[a-z0-9/\\_.-]+(?:\s?}{2})?)/i;
+  var SyntaxHelp = "Syntax Error in 'include' - Valid syntax: include [templateName]";
+  module.exports = class Include extends Liquid.Tag {
+    constructor(template, tagName, markup) {
+      super(template, tagName, markup);
+      const match = Syntax.exec(markup);
+      if (!match) {
+        throw new Liquid.SyntaxError(SyntaxHelp);
+      }
+      this.filepath = match[1];
+    }
+    async subTemplate(context) {
+      if (this.filepath.startsWith("{{") && this.filepath.endsWith("}}")) {
+        this.filepath = await context.get(this.filepath);
+      }
+      const src = await this.template.engine.fileSystem.readTemplateFile(this.filepath);
+      return this.template.engine.parse(src);
+    }
+    async render(context) {
+      const subTemplate = await this.subTemplate(context);
+      return subTemplate.render(context);
+    }
+  };
+});
+
+// node_modules/liquid/lib/liquid/tags/render.js
+var require_render = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  var IsStringReg = /^('|").*\1$/;
+  var OptionsSyntax = /([a-zA-Z-_]+):\s([a-zA-Z0-9\d-_\s"']+)/g;
+  var OperatorSyntax = /(?<keyword>with|for)\s(?<value>[a-zA-Z-_]+)\sas\s(?<key>[a-zA-Z0-9\d-_\s"']+)/;
+  var Syntax = new RegExp(`^(?<filepath>('|")?[a-zA-Z-]+\\2)(?<variables>(?:\\s${OperatorSyntax.source}|(?:,\\s${OptionsSyntax.source})*))`);
+  var SyntaxHelp = "Syntax Error in 'render' - Valid syntax: render [templateName]";
+  module.exports = class Render extends Liquid.Tag {
+    constructor(template, tagName, markup) {
+      super(template, tagName, markup);
+      const match = Syntax.exec(markup);
+      if (!match) {
+        throw new Liquid.SyntaxError(SyntaxHelp);
+      }
+      this.filepath = match.groups.filepath;
+      this.variables = match.groups.variables.trim();
+      if (match.groups.keyword) {
+        this.keyword = match.groups.keyword;
+        this.operatorKey = match.groups.key.trim();
+        this.operatorValue = match.groups.value.trim();
+      }
+    }
+    async serializeValue(value, context) {
+      if (IsStringReg.test(value)) {
+        return value.slice(1, value.length - 1);
+      } else {
+        return context.get(value);
+      }
+    }
+    async parseVariables(context) {
+      if (!this.variables)
+        return {};
+      if (this.keyword) {
+        return {
+          [this.operatorKey]: await this.serializeValue(this.operatorValue, context)
+        };
+      }
+      const options = {};
+      let optionsMatch;
+      while (optionsMatch = OptionsSyntax.exec(this.variables)) {
+        const [, key, value] = optionsMatch;
+        options[key] = await this.serializeValue(value, context);
+      }
+      return options;
+    }
+    async subTemplate(context) {
+      this.filepath = await this.serializeValue(this.filepath, context);
+      const src = await this.template.engine.fileSystem.readTemplateFile(this.filepath);
+      return this.template.engine.parse(src);
+    }
+    async renderAll(subTemplate, variables) {
+      const renders = [];
+      const value = variables[this.operatorKey];
+      if (!value)
+        return;
+      const length = value.length;
+      for (let index = 0;index < length; index++) {
+        const item = value[index];
+        const forloop = {
+          length,
+          index: index + 1,
+          index0: index,
+          rindex: length - index,
+          rindex0: length - index - 1,
+          first: index === 0,
+          last: index === length - 1
+        };
+        const rendered = await subTemplate.render({ [this.operatorKey]: item, forloop });
+        renders.push(rendered);
+      }
+      return renders.join("");
+    }
+    async render(context) {
+      const subTemplate = await this.subTemplate(context);
+      const variables = await this.parseVariables(context);
+      if (this.keyword === "for") {
+        return this.renderAll(subTemplate, variables);
+      } else {
+        return subTemplate.render(variables);
+      }
+    }
+  };
+});
+
+// node_modules/liquid/lib/index.js
+var require_lib = __commonJS((exports, module) => {
+  var Liquid = require_liquid();
+  var util = __require("util");
+  function createCustomError(name, inherit = global.Error) {
+    const error = function(message) {
+      this.name = name;
+      this.message = message;
+      if (global.Error.captureStackTrace) {
+        return global.Error.captureStackTrace(this, arguments.callee);
+      }
+    };
+    util.inherits(error, inherit);
+    return error;
+  }
+  Liquid.Error = createCustomError("Error");
+  ["ArgumentError", "ContextError", "FilterNotFound", "FileSystemError", "StandardError", "StackLevelError", "SyntaxError"].forEach((className) => {
+    Liquid[className] = createCustomError("Liquid." + className, Liquid.Error);
+    return Liquid[className];
+  });
+  Liquid.Engine = require_engine();
+  Liquid.Helpers = require_helpers();
+  Liquid.Range = require_range();
+  Liquid.Iterable = require_iterable();
+  Liquid.Drop = require_drop();
+  Liquid.Context = require_context();
+  Liquid.Tag = require_tag();
+  Liquid.Block = require_block();
+  Liquid.Document = require_document();
+  Liquid.Variable = require_variable();
+  Liquid.Template = require_template();
+  Liquid.StandardFilters = require_standard_filters();
+  Liquid.Condition = require_condition();
+  Liquid.ElseCondition = require_else_condition();
+  Liquid.BlankFileSystem = require_blank_file_system();
+  Liquid.LocalFileSystem = require_local_file_system();
+  Liquid.Assign = require_assign();
+  Liquid.Capture = require_capture();
+  Liquid.Case = require_case();
+  Liquid.Comment = require_comment();
+  Liquid.Decrement = require_decrement();
+  Liquid.For = require_for();
+  Liquid.If = require_if();
+  Liquid.Ifchanged = require_ifchanged();
+  Liquid.Increment = require_increment();
+  Liquid.Raw = require_raw();
+  Liquid.Unless = require_unless();
+  Liquid.Include = require_include();
+  Liquid.Render = require_render();
+  module.exports = Liquid;
+});
+
+// src/cli.ts
+import process4 from "process";
+
+// src/setup/run.ts
+import { mkdir as mkdir2, rm } from "fs/promises";
+import path5 from "path";
+import process3 from "process";
+
+// node_modules/commander/esm.mjs
+var import__ = __toESM(require_commander(), 1);
+var {
+  program,
+  createCommand,
+  createArgument,
+  createOption,
+  CommanderError,
+  InvalidArgumentError,
+  InvalidOptionArgumentError,
+  Command,
+  Argument,
+  Option,
+  Help
+} = import__.default;
+
+// src/setup/constants.ts
+var HARNESS_PATH = ".agent-harness";
+var TEMPLATE_VARIABLES = {
+  path: HARNESS_PATH
+};
+
+// src/setup/fs.ts
+import { createHash } from "crypto";
+import { access } from "fs/promises";
+async function pathExists(targetPath) {
+  try {
+    await access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function readTextIfExists(filePath) {
+  if (!await pathExists(filePath)) {
+    return "";
+  }
+  return Bun.file(filePath).text();
+}
+async function hashFile(filePath) {
+  const hash = createHash("sha256");
+  hash.update(await Bun.file(filePath).bytes());
+  return hash.digest("hex");
+}
+function hashContent(content) {
+  const hash = createHash("sha256");
+  hash.update(content);
+  return hash.digest("hex");
 }
 
-overwrite=false
+// src/setup/gitignore.ts
+import path from "path";
+async function ensureGitignoreEntry(targetRoot, dryRun) {
+  const gitignorePath = path.join(targetRoot, ".gitignore");
+  const content = await readTextIfExists(gitignorePath);
+  const lines = content === "" ? [] : content.split(/\r?\n/);
+  const ignoredPath = `${HARNESS_PATH}/`;
+  const rootedIgnoredPath = `/${ignoredPath}`;
+  if (lines.includes(ignoredPath) || lines.includes(rootedIgnoredPath)) {
+    return false;
+  }
+  if (dryRun) {
+    console.log(`Would update .gitignore: add ${ignoredPath}`);
+    return true;
+  }
+  const nextContent = content.endsWith(`
+`) || content === "" ? `${content}${ignoredPath}
+` : `${content}
+${ignoredPath}
+`;
+  await Bun.write(gitignorePath, nextContent);
+  console.log(`Updated .gitignore: added ${ignoredPath}`);
+  return true;
+}
 
-while (($# > 0)); do
-  case "$1" in
-    --overwrite)
-      overwrite=true
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    *)
-      printf 'Unknown option: %s\n' "$1" >&2
-      usage >&2
-      exit 1
-      ;;
-  esac
-  shift
-done
+// src/setup/manifest.ts
+import { readlink, readdir } from "fs/promises";
+import path2 from "path";
 
-script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-repo_root=$(cd "$script_dir/.." && pwd)
-source_dir="$repo_root/commands"
-target_dir="$HOME/.config/opencode/commands"
+// src/setup/template.ts
+var import_liquid = __toESM(require_lib(), 1);
+var liquid = new import_liquid.default.Engine;
+async function renderTemplateFile(filePath, variables) {
+  const template = await Bun.file(filePath).text();
+  return liquid.parseAndRender(template, variables);
+}
 
-if [[ ! -d "$source_dir" ]]; then
-  printf 'Source commands directory not found: %s\n' "$source_dir" >&2
-  exit 1
-fi
+// src/setup/manifest.ts
+function manifestsEqual(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+function targetPathForSourceFile(relativePath) {
+  return relativePath.endsWith(".liquid") ? relativePath.slice(0, -".liquid".length) : relativePath;
+}
+async function manifestFor(directory) {
+  const manifest = {};
+  if (!await pathExists(directory)) {
+    return manifest;
+  }
+  async function walk(currentDirectory) {
+    const entries = await readdir(currentDirectory, { withFileTypes: true });
+    entries.sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of entries) {
+      const entryPath = path2.join(currentDirectory, entry.name);
+      if (entry.isDirectory()) {
+        await walk(entryPath);
+        continue;
+      }
+      if (entry.isSymbolicLink()) {
+        const linkTarget = await readlink(entryPath);
+        manifest[path2.relative(directory, entryPath).replaceAll(path2.sep, "/")] = `symlink:${linkTarget}`;
+        continue;
+      }
+      if (!entry.isFile()) {
+        continue;
+      }
+      manifest[path2.relative(directory, entryPath).replaceAll(path2.sep, "/")] = await hashFile(entryPath);
+    }
+  }
+  await walk(directory);
+  return manifest;
+}
+async function renderedManifestFor(directory, variables) {
+  const manifest = {};
+  if (!await pathExists(directory)) {
+    return manifest;
+  }
+  async function walk(currentDirectory) {
+    const entries = await readdir(currentDirectory, { withFileTypes: true });
+    entries.sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of entries) {
+      const entryPath = path2.join(currentDirectory, entry.name);
+      const relativePath = path2.relative(directory, entryPath).replaceAll(path2.sep, "/");
+      const targetRelativePath = targetPathForSourceFile(relativePath);
+      if (entry.isDirectory()) {
+        await walk(entryPath);
+        continue;
+      }
+      if (entry.isSymbolicLink()) {
+        const linkTarget = await readlink(entryPath);
+        manifest[targetRelativePath] = `symlink:${linkTarget}`;
+        continue;
+      }
+      if (!entry.isFile()) {
+        continue;
+      }
+      if (relativePath.endsWith(".liquid")) {
+        manifest[targetRelativePath] = hashContent(await renderTemplateFile(entryPath, variables));
+        continue;
+      }
+      manifest[targetRelativePath] = await hashFile(entryPath);
+    }
+  }
+  await walk(directory);
+  return manifest;
+}
 
-mkdir -p "$target_dir"
+// src/setup/metadata.ts
+async function loadMetadata(metadataPath) {
+  if (!await pathExists(metadataPath)) {
+    return { formatVersion: 1, skills: {} };
+  }
+  const data = await Bun.file(metadataPath).json();
+  if (!data.skills || typeof data.skills !== "object") {
+    data.skills = {};
+  }
+  if (!data.formatVersion) {
+    data.formatVersion = 1;
+  }
+  return data;
+}
 
-copied=0
-skipped=0
+// src/setup/prompt.ts
+import process, { stdin as input, stdout as output } from "process";
+import readline from "readline/promises";
+function isYes(value) {
+  return /^(y|yes)$/i.test(value.trim());
+}
+async function confirmInstall(targetRoot) {
+  const prompt = `This will install agent harness into ${targetRoot}. Continue? [y/N] `;
+  if (!input.isTTY) {
+    console.error(prompt);
+    console.error("Re-run interactively to confirm the install.");
+    process.exit(1);
+  }
+  const rl = readline.createInterface({ input, output });
+  try {
+    const response = await rl.question(prompt);
+    if (!isYes(response)) {
+      console.log("Aborted.");
+      process.exit(1);
+    }
+  } finally {
+    rl.close();
+  }
+}
 
-while IFS= read -r source_file; do
-  relative_path=${source_file#"$source_dir/"}
-  target_file="$target_dir/$relative_path"
+// src/setup/runtime.ts
+import path3 from "path";
+import process2 from "process";
+function resolveSetupPaths(argv) {
+  const scriptPath = path3.resolve(argv[1]);
+  const scriptDir = path3.dirname(scriptPath);
+  const repoRoot = path3.resolve(scriptDir, "..");
+  const sourceDir = path3.join(repoRoot, "skills");
+  const targetRoot = path3.resolve(process2.cwd());
+  const targetAgentsDir = path3.join(targetRoot, ".agents");
+  const targetDir = path3.join(targetAgentsDir, "skills");
+  const targetLogsDir = path3.join(targetRoot, ".agent-harness", "logs");
+  const metadataPath = path3.join(targetAgentsDir, "agent-harness-install.json");
+  return {
+    metadataPath,
+    repoRoot,
+    sourceDir,
+    targetAgentsDir,
+    targetDir,
+    targetLogsDir,
+    targetRoot
+  };
+}
+function currentCommit(repoRoot) {
+  const result = Bun.spawnSync({
+    cmd: ["git", "-C", repoRoot, "rev-parse", "HEAD"],
+    stdout: "pipe",
+    stderr: "ignore"
+  });
+  if (result.exitCode !== 0) {
+    return "";
+  }
+  return Buffer.from(result.stdout).toString("utf8").trim();
+}
+function managedSkillTargetPath(skillName) {
+  return `.agents/skills/${skillName}`;
+}
 
-  mkdir -p "$(dirname "$target_file")"
+// src/setup/skills.ts
+import { mkdir, readlink as readlink2, readdir as readdir2, symlink } from "fs/promises";
+import path4 from "path";
+function skillNameFromSource(directoryName) {
+  return directoryName.startsWith("ah-") ? directoryName.slice(3) : directoryName;
+}
+async function listSkillDirectories(sourceDir) {
+  const entries = await readdir2(sourceDir, { withFileTypes: true });
+  const skills = [];
+  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    const skillDir = path4.join(sourceDir, entry.name);
+    const skillFile = path4.join(skillDir, "SKILL.md");
+    const skillTemplateFile = path4.join(skillDir, "SKILL.md.liquid");
+    if (await pathExists(skillFile) || await pathExists(skillTemplateFile)) {
+      skills.push(skillDir);
+    }
+  }
+  return skills;
+}
+async function writeSkillDirectory(sourceDir, targetDir, variables) {
+  await mkdir(targetDir, { recursive: true });
+  async function walk(currentSourceDir, currentTargetDir) {
+    const entries = await readdir2(currentSourceDir, { withFileTypes: true });
+    entries.sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of entries) {
+      const sourcePath = path4.join(currentSourceDir, entry.name);
+      const targetName = entry.name.endsWith(".liquid") ? entry.name.slice(0, -".liquid".length) : entry.name;
+      const targetPath = path4.join(currentTargetDir, targetName);
+      if (entry.isDirectory()) {
+        await mkdir(targetPath, { recursive: true });
+        await walk(sourcePath, targetPath);
+        continue;
+      }
+      if (entry.isSymbolicLink()) {
+        await symlink(await readlink2(sourcePath), targetPath);
+        continue;
+      }
+      if (!entry.isFile()) {
+        continue;
+      }
+      if (entry.name.endsWith(".liquid")) {
+        await Bun.write(targetPath, await renderTemplateFile(sourcePath, variables));
+        continue;
+      }
+      await Bun.write(targetPath, Bun.file(sourcePath));
+    }
+  }
+  await walk(sourceDir, targetDir);
+}
 
-  if [[ -e "$target_file" && "$overwrite" != true ]]; then
-    printf 'Skipping existing file: %s\n' "$relative_path"
-    skipped=$((skipped + 1))
-    continue
-  fi
+// src/setup/run.ts
+async function removePath(targetPath) {
+  await rm(targetPath, { force: true, recursive: true });
+}
+function createProgram() {
+  const program2 = new Command;
+  program2.name("setup").description("Install harness skills into the current repo.").option("--dry", "Preview install or upgrade actions without changing files").option("--overwrite", "Replace harness-managed skills with the current harness copy").helpOption("-h, --help");
+  return program2;
+}
+async function runSetupCli(argv) {
+  const program2 = createProgram();
+  program2.parse(argv);
+  await runSetup(program2.opts(), argv);
+}
+async function runSetup(options, argv) {
+  const paths = resolveSetupPaths(argv);
+  if (!await pathExists(paths.sourceDir)) {
+    console.error(`Source skills directory not found: ${paths.sourceDir}`);
+    process3.exit(1);
+  }
+  if (!await pathExists(paths.targetRoot)) {
+    console.error(`Target directory not found: ${paths.targetRoot}`);
+    process3.exit(1);
+  }
+  if (!options.dry) {
+    await confirmInstall(paths.targetRoot);
+  }
+  await ensureGitignoreEntry(paths.targetRoot, options.dry === true);
+  const metadata = await loadMetadata(paths.metadataPath);
+  metadata.source = {
+    repoRoot: paths.repoRoot,
+    commit: currentCommit(paths.repoRoot)
+  };
+  metadata.targetRoot = paths.targetRoot;
+  const skills = await listSkillDirectories(paths.sourceDir);
+  if (skills.length === 0) {
+    console.error(`No skills found in ${paths.sourceDir}`);
+    process3.exit(1);
+  }
+  const counts = {
+    installed: 0,
+    updated: 0,
+    up_to_date: 0,
+    removed: 0,
+    skipped: 0
+  };
+  const sourceSkillNames = new Set(skills.map((skillDir) => skillNameFromSource(path5.basename(skillDir))));
+  const prefix = options.dry ? "Would " : "";
+  for (const sourceSkillDir of skills) {
+    const sourceSkillName = path5.basename(sourceSkillDir);
+    const skillName = skillNameFromSource(sourceSkillName);
+    const targetSkillDir = path5.join(paths.targetDir, skillName);
+    const sourceManifest = await renderedManifestFor(sourceSkillDir, TEMPLATE_VARIABLES);
+    const record = metadata.skills[skillName] || {};
+    const managed = record.managed === true && record.targetPath === managedSkillTargetPath(skillName);
+    const installedManifest = managed ? record.installedFiles || {} : {};
+    const targetExists = await pathExists(targetSkillDir);
+    const targetManifest = await manifestFor(targetSkillDir);
+    const targetModified = managed && targetExists && !manifestsEqual(targetManifest, installedManifest);
+    const sourceChanged = managed && !manifestsEqual(sourceManifest, installedManifest);
+    let status = "";
+    let detail = "";
+    if (!targetExists) {
+      status = "install";
+    } else if (!managed) {
+      status = "skip";
+      detail = "existing directory is not managed by agent-harness";
+    } else if (options.overwrite) {
+      if (manifestsEqual(targetManifest, sourceManifest)) {
+        status = "up_to_date";
+      } else {
+        status = "update";
+        if (targetModified && sourceChanged) {
+          detail = "overwriting local changes with updated harness files";
+        } else if (targetModified) {
+          detail = "overwriting local changes with harness files";
+        } else if (sourceChanged) {
+          detail = "upgrading to the latest harness files";
+        }
+      }
+    } else if (targetModified && sourceChanged) {
+      status = "skip";
+      detail = "managed skill has local changes and a harness update is available; re-run with --overwrite";
+    } else if (targetModified) {
+      status = "skip";
+      detail = "managed skill has local changes; re-run with --overwrite to restore harness files";
+    } else if (sourceChanged || !manifestsEqual(targetManifest, sourceManifest)) {
+      status = "skip";
+      detail = "managed skill differs from the current harness copy; re-run with --overwrite";
+    } else {
+      status = "up_to_date";
+    }
+    if (status === "install") {
+      console.log(`${prefix}install: ${skillName}`);
+      counts.installed += 1;
+      if (!options.dry) {
+        await mkdir2(paths.targetDir, { recursive: true });
+        await writeSkillDirectory(sourceSkillDir, targetSkillDir, TEMPLATE_VARIABLES);
+        metadata.skills[skillName] = {
+          managed: true,
+          sourceSkill: sourceSkillName,
+          sourcePath: sourceSkillDir,
+          targetPath: managedSkillTargetPath(skillName),
+          installedFiles: sourceManifest
+        };
+      }
+      continue;
+    }
+    if (status === "update") {
+      console.log(detail ? `${prefix}update: ${skillName} (${detail})` : `${prefix}update: ${skillName}`);
+      counts.updated += 1;
+      if (!options.dry) {
+        await mkdir2(paths.targetDir, { recursive: true });
+        await removePath(targetSkillDir);
+        await writeSkillDirectory(sourceSkillDir, targetSkillDir, TEMPLATE_VARIABLES);
+        metadata.skills[skillName] = {
+          managed: true,
+          sourceSkill: sourceSkillName,
+          sourcePath: sourceSkillDir,
+          targetPath: managedSkillTargetPath(skillName),
+          installedFiles: sourceManifest
+        };
+      }
+      continue;
+    }
+    if (status === "up_to_date") {
+      console.log(`${prefix}up to date: ${skillName}`);
+      counts.up_to_date += 1;
+      continue;
+    }
+    console.log(`${prefix}skip: ${skillName} (${detail})`);
+    counts.skipped += 1;
+  }
+  const staleRecords = [];
+  for (const skillName of Object.keys(metadata.skills).sort()) {
+    if (sourceSkillNames.has(skillName)) {
+      continue;
+    }
+    const record = metadata.skills[skillName];
+    if (record.managed !== true || record.targetPath !== managedSkillTargetPath(skillName)) {
+      continue;
+    }
+    const targetSkillDir = path5.join(paths.targetDir, skillName);
+    const installedManifest = record.installedFiles || {};
+    const targetManifest = await manifestFor(targetSkillDir);
+    if (!await pathExists(targetSkillDir)) {
+      staleRecords.push([skillName, "remove record for missing managed skill"]);
+    } else if (manifestsEqual(targetManifest, installedManifest)) {
+      staleRecords.push([skillName, "remove managed skill no longer shipped by harness"]);
+    } else {
+      console.log(`${prefix}skip stale managed skill: ${skillName} ` + "(target has local changes and no longer exists in the harness)");
+      counts.skipped += 1;
+    }
+  }
+  for (const [skillName, detail] of staleRecords) {
+    if (options.dry) {
+      console.log(`Would remove: ${skillName} (${detail})`);
+      counts.removed += 1;
+      continue;
+    }
+    const targetSkillDir = path5.join(paths.targetDir, skillName);
+    if (await pathExists(targetSkillDir)) {
+      await removePath(targetSkillDir);
+    }
+    delete metadata.skills[skillName];
+    console.log(`Removed: ${skillName} (${detail})`);
+    counts.removed += 1;
+  }
+  if (!options.dry) {
+    await mkdir2(paths.targetLogsDir, { recursive: true });
+    await mkdir2(paths.targetAgentsDir, { recursive: true });
+    await Bun.write(paths.metadataPath, `${JSON.stringify(metadata, null, 2)}
+`);
+  }
+  const mode = options.dry ? "Dry run complete" : "Done";
+  console.log(`${mode}. Installed ${counts.installed}, updated ${counts.updated}, removed ${counts.removed}, ` + `skipped ${counts.skipped}, up to date ${counts.up_to_date}.`);
+  if (options.dry) {
+    if (options.overwrite) {
+      console.log("Run again without --dry to apply these managed upgrades and removals.");
+    } else {
+      console.log("Run with --dry --overwrite to preview managed upgrades, or --overwrite to apply them.");
+    }
+  }
+}
 
-  cp "$source_file" "$target_file"
-  printf 'Installed: %s\n' "$relative_path"
-  copied=$((copied + 1))
-done < <(find "$source_dir" -type f)
-
-printf 'Done. Copied %d file(s)' "$copied"
-if [[ "$overwrite" == true ]]; then
-  printf ' with overwrite enabled'
-fi
-printf '.\n'
-
-if ((skipped > 0)); then
-  printf 'Skipped %d existing file(s). Re-run with --overwrite to replace them.\n' "$skipped"
-fi
+// src/cli.ts
+runSetupCli(process4.argv).catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process4.exit(1);
+});

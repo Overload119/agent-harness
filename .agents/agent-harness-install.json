@@ -1,0 +1,82 @@
+{
+  "formatVersion": 1,
+  "skills": {
+    "commit": {
+      "managed": true,
+      "sourceSkill": "ah-commit",
+      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-commit",
+      "targetPath": ".agents/skills/commit",
+      "installedFiles": {
+        "SKILL.md": "039eb3a35a0a2bf8f23520df50d405539806d2ae6bcee20e3488e619d5105235"
+      }
+    },
+    "compound": {
+      "managed": true,
+      "sourceSkill": "ah-compound",
+      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-compound",
+      "targetPath": ".agents/skills/compound",
+      "installedFiles": {
+        "SKILL.md": "2e1a6e896670fba4192c11f750f319d5c1549660e607bf2058e833e28d66fbcb"
+      }
+    },
+    "oneshot": {
+      "managed": true,
+      "sourceSkill": "ah-oneshot",
+      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-oneshot",
+      "targetPath": ".agents/skills/oneshot",
+      "installedFiles": {
+        "SKILL.md": "6f265e0e16b572eaac6352a907037c277d4d31f6b374d02660b7fd83f6562338"
+      }
+    },
+    "plan": {
+      "managed": true,
+      "sourceSkill": "ah-plan",
+      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-plan",
+      "targetPath": ".agents/skills/plan",
+      "installedFiles": {
+        "SKILL.md": "e1c958d4f35c35499ce4d415ac65fcd5a9c3773fefc65adac57b417545f06ae4"
+      }
+    },
+    "prd": {
+      "managed": true,
+      "sourceSkill": "ah-prd",
+      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-prd",
+      "targetPath": ".agents/skills/prd",
+      "installedFiles": {
+        "SKILL.md": "0cb964eea3002999fa94e95bff9f657e883edcd2d933f8e2311f1ae2d6243b77"
+      }
+    },
+    "review": {
+      "managed": true,
+      "sourceSkill": "ah-review",
+      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-review",
+      "targetPath": ".agents/skills/review",
+      "installedFiles": {
+        "SKILL.md": "edaa845d81a034c0175fc302032ddd543f5b3bd8b320521d5e2ed51350170362"
+      }
+    },
+    "ship": {
+      "managed": true,
+      "sourceSkill": "ah-ship",
+      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-ship",
+      "targetPath": ".agents/skills/ship",
+      "installedFiles": {
+        "SKILL.md": "ffbe7214ac118b575080f6d516cf585045840ddd8151042457508d3b8d1b6f6f"
+      }
+    },
+    "verify": {
+      "managed": true,
+      "sourceSkill": "ah-verify",
+      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-verify",
+      "targetPath": ".agents/skills/verify",
+      "installedFiles": {
+        "SKILL.md": "c2c5c16c9ba05a3835f2945aed65e2adf2f413d0baf2753f9c21c10093ce484b"
+      }
+    }
+  },
+  "source": {
+    "repoRoot": "/Users/amirsharif/Projects/agent-harness",
+    "commit": "13d3b1ba9decc62d354510724ab255ecf36e59b9"
+  },
+  "targetRoot": "/Users/amirsharif/Projects/agent-harness"
+}
