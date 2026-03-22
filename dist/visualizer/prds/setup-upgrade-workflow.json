@@ -1,0 +1,52 @@
+{
+  "project": "agent-harness",
+  "branchName": "ralph/setup-upgrade-workflow",
+  "description": "Update setup so it installs into the bootstrapped repo, tracks installed skills, and supports safe upgrade previews.",
+  "tasks": [
+    {
+      "id": "US-001",
+      "title": "Install into the target repo",
+      "description": "As a user, I want setup to copy skills from the harness clone into the repo I am bootstrapping so that running setup from another folder installs files in the right place.",
+      "acceptanceCriteria": [
+        "Setup derives the source skills directory from the harness script location.",
+        "Setup derives the install destination from the current working directory by default.",
+        "Setup asks for confirmation before installing into the current working directory.",
+        "Existing unmanaged skill directories are not overwritten automatically."
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "parallel": false
+    },
+    {
+      "id": "US-002",
+      "title": "Track managed installs for upgrades",
+      "description": "As a user, I want setup to record what it installed so that future upgrades can safely update only harness-managed skill directories.",
+      "acceptanceCriteria": [
+        "Setup writes install metadata into the target repo under .agents/.",
+        "Metadata records the harness source location, source commit when available, and installed skill manifests.",
+        "Overwrite mode updates only managed skill directories or missing targets.",
+        "Managed directories with local changes are detectable from the stored manifest.",
+        "Managed skills removed from the harness can be safely removed during upgrades when the target copy is unchanged."
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "parallel": false
+    },
+    {
+      "id": "US-003",
+      "title": "Preview upgrades and document the workflow",
+      "description": "As a user, I want a dry-run view of install and upgrade actions plus updated docs so that I can understand what setup will change before applying it.",
+      "acceptanceCriteria": [
+        "Setup supports a dry mode that reports installs, upgrades, removals, skips, and up-to-date skills without modifying files.",
+        "README documents the correct bootstrap command and current-directory install behavior.",
+        "README documents how dry mode and overwrite mode are used for upgrades."
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "parallel": false
+    }
+  ]
+}
