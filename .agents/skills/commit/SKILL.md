@@ -1,6 +1,6 @@
 ---
 name: ah-commit
-description: Review current unstaged or partially staged work, propose one or more coherent staging sets, and draft commits for user approval. Use when the user wants help preparing commits, splitting changes into clean commits, or deciding what should stay unstaged.
+description: Review current unstaged or partially staged work, propose one or more coherent staging sets, and draft commits for user approval. Use when the user mentions anything about committing the changes, including preparing commits, splitting changes into clean commits, or deciding what should stay unstaged.
 ---
 
 Prepare one or more commits without actually creating them until the user approves.

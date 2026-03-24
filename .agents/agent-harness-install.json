@@ -7,7 +7,7 @@
       "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-commit",
       "targetPath": ".agents/skills/commit",
       "installedFiles": {
-        "SKILL.md": "687053c654a36f8b5bfc66edb3b44127da6c5e59ec5bd8f62b7ef4c66fa919d7"
+        "SKILL.md": "62488b7fe8a3a47c241ae370e2c783ba98cc5ba353e7f2954c4fce644b2d000b"
       }
     },
     "compound": {
@@ -103,7 +103,7 @@
   },
   "source": {
     "repoRoot": "/Users/amirsharif/Projects/agent-harness",
-    "commit": "afe2b3cf5666dd25afb27fe4b6dbf947a3c814a3"
+    "commit": "b57abde58cd04c52f45f2eac5afdc8260b63e40f"
   },
   "targetRoot": "/Users/amirsharif/Projects/agent-harness"
 }
