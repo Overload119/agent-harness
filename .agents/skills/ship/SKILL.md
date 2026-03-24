@@ -1,6 +1,6 @@
 ---
 name: ah-ship
-description: Prepares completed work for shipping by checking local instructions, validating repo state, and defaulting to a safe commit-oriented flow.
+description: Prepare completed work for shipping by checking local instructions, validating repo state, and defaulting to a safe commit-oriented flow. Use when the user wants to ship, release, or wrap up finished work without guessing at repo-specific deploy steps.
 ---
 
 Prepare completed work to ship without using destructive git behavior.

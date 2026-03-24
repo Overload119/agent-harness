@@ -1,6 +1,6 @@
 ---
 name: ah-plan
-description: Turns a short task, TODO, rough request, or draft plan into a concrete execution plan with assumptions, dependencies, risks, and verification steps.
+description: Turn a short task, TODO, rough request, or draft plan into a concrete execution plan with assumptions, dependencies, risks, and verification steps. Use when the user needs a vague request expanded into an actionable, minimal, dependency-aware plan or when they ask for a plan.
 ---
 
 Turn a short task, TODO, rough request, or draft plan into a concrete execution plan.

@@ -1,9 +1,9 @@
 import { appendFile, mkdir } from "node:fs/promises";
 import path from "node:path";
-import process from "node:process";
 import { format } from "node:util";
 
-const HARNESS_LOGS_DIR = path.join(".agent-harness", "logs");
+import { homeHarnessSubdir } from "../harness/paths";
+
 const VISUALIZER_LOG_FILE = "ah-vis.log";
 
 function timestamp(): string {
@@ -14,19 +14,19 @@ function formatLogLine(args: unknown[]): string {
   return `[${timestamp()}] ${format(...args)}\n`;
 }
 
-export async function ensureVisualizerLogPath(cwd = process.cwd()): Promise<string> {
-  const logDir = path.join(cwd, HARNESS_LOGS_DIR);
+export async function ensureVisualizerLogPath(): Promise<string> {
+  const logDir = homeHarnessSubdir("logs");
   await mkdir(logDir, { recursive: true });
   return path.join(logDir, VISUALIZER_LOG_FILE);
 }
 
-export async function appendVisualizerLog(args: unknown[], cwd = process.cwd()): Promise<void> {
-  const logPath = await ensureVisualizerLogPath(cwd);
+export async function appendVisualizerLog(args: unknown[]): Promise<void> {
+  const logPath = await ensureVisualizerLogPath();
   await appendFile(logPath, formatLogLine(args), "utf8");
 }
 
-export async function installVisualizerConsoleMirroring(cwd = process.cwd()): Promise<string> {
-  const logPath = await ensureVisualizerLogPath(cwd);
+export async function installVisualizerConsoleMirroring(): Promise<string> {
+  const logPath = await ensureVisualizerLogPath();
   const originalLog = console.log.bind(console);
   const originalError = console.error.bind(console);
   const originalWarn = console.warn.bind(console);

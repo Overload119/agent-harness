@@ -1,6 +1,6 @@
 ---
 name: ah-prd
-description: Converts an expanded plan into a deterministic PRD-style JSON artifact for one-agent-per-task execution.
+description: Convert an expanded plan into a deterministic PRD-style JSON artifact for one-agent-per-task execution. Use when the user has a plan that should be normalized into ordered, testable tasks for agent execution.
 ---
 
 Turn an expanded plan into an executable PRD-style task spec for a subagent loop.
@@ -75,7 +75,7 @@ Use this schema:
 
 Task construction guidance:
 
-- Use sequential IDs like `AH-001`, `AH-002`, `AH-003`.
+- Use sequential IDs like `US-001`, `US-002`, `US-003`.
 - Set `priority` to execution order, where `1` is the first task to run.
 - If the plan includes required verification work, represent it in acceptance criteria or as a dedicated task when substantial.
 - If the input is already well structured, preserve the user's intent and only normalize wording and shape.

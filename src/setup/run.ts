@@ -7,6 +7,7 @@ import { TEMPLATE_VARIABLES } from "./constants";
 import { pathExists } from "./fs";
 import { ensureGitignoreEntry } from "./gitignore";
 import { renderedManifestFor, manifestFor, manifestsEqual } from "./manifest";
+import { ensureAgentMemoryIntegration } from "./memory";
 import { loadMetadata } from "./metadata";
 import { confirmInstall } from "./prompt";
 import { currentCommit, managedSkillTargetPath, resolveSetupPaths } from "./runtime";
@@ -54,6 +55,10 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
   }
 
   await ensureGitignoreEntry(paths.targetRoot, options.dry === true);
+  await ensureAgentMemoryIntegration(paths.targetRoot, {
+    dryRun: options.dry === true,
+    overwrite: options.overwrite === true,
+  });
 
   const metadata = await loadMetadata(paths.metadataPath);
   metadata.source = {
@@ -217,6 +222,7 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
   }
 
   if (!options.dry) {
+    await mkdir(paths.targetDiagramsDir, { recursive: true });
     await mkdir(paths.targetLogsDir, { recursive: true });
     await mkdir(paths.targetAgentsDir, { recursive: true });
     await Bun.write(paths.metadataPath, `${JSON.stringify(metadata, null, 2)}\n`);

@@ -1,6 +1,6 @@
 ---
 name: ah-oneshot
-description: Runs the Ralph loop as a single coordinated flow from planning through review and verification while preserving intermediate artifacts.
+description: Run the Ralph loop as a single coordinated flow from planning through review and verification while preserving intermediate artifacts. Use when the user wants one end-to-end harness pass that plans, structures, executes, reviews, and verifies work with resumable state.
 ---
 
 Run a Ralph-style loop as one coordinated pass.

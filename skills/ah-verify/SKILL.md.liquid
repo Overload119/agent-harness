@@ -1,6 +1,6 @@
 ---
 name: ah-verify
-description: Verifies completed work, using browser automation only when browser-based validation is actually relevant.
+description: Verify completed work, using browser automation only when browser-based validation is actually relevant. Use when the user wants evidence that implemented work behaves correctly or needs a concrete verification strategy with explicit gaps.
 ---
 
 Verify whether completed work behaves as intended.

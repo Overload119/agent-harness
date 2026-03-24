@@ -1,0 +1,11 @@
+{
+  "context": {
+    "showSummaries": true,
+    "showPrompts": true,
+    "showObservations": true,
+    "showToolGuidance": true,
+    "maxSummaries": 3,
+    "maxPrompts": 10,
+    "maxObservations": 10
+  }
+}

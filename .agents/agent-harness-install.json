@@ -7,7 +7,7 @@
       "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-commit",
       "targetPath": ".agents/skills/commit",
       "installedFiles": {
-        "SKILL.md": "039eb3a35a0a2bf8f23520df50d405539806d2ae6bcee20e3488e619d5105235"
+        "SKILL.md": "687053c654a36f8b5bfc66edb3b44127da6c5e59ec5bd8f62b7ef4c66fa919d7"
       }
     },
     "compound": {
@@ -16,7 +16,7 @@
       "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-compound",
       "targetPath": ".agents/skills/compound",
       "installedFiles": {
-        "SKILL.md": "2e1a6e896670fba4192c11f750f319d5c1549660e607bf2058e833e28d66fbcb"
+        "SKILL.md": "6a6cd3743605b8567b6eeac2d9a7d80f275e512165c1a0bb53c0f6b58a994d43"
       }
     },
     "oneshot": {
@@ -25,7 +25,7 @@
       "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-oneshot",
       "targetPath": ".agents/skills/oneshot",
       "installedFiles": {
-        "SKILL.md": "6f265e0e16b572eaac6352a907037c277d4d31f6b374d02660b7fd83f6562338"
+        "SKILL.md": "00bfc9201bbf855b9c8208dcdf06fe1a1afa97158599106f385c773fe449c4d4"
       }
     },
     "plan": {
@@ -34,7 +34,7 @@
       "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-plan",
       "targetPath": ".agents/skills/plan",
       "installedFiles": {
-        "SKILL.md": "e1c958d4f35c35499ce4d415ac65fcd5a9c3773fefc65adac57b417545f06ae4"
+        "SKILL.md": "e7b00bea698fb012730bb5fcb5bbb2a4d629c09ca3fffeb52be308ff6d458c32"
       }
     },
     "prd": {
@@ -43,7 +43,7 @@
       "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-prd",
       "targetPath": ".agents/skills/prd",
       "installedFiles": {
-        "SKILL.md": "0cb964eea3002999fa94e95bff9f657e883edcd2d933f8e2311f1ae2d6243b77"
+        "SKILL.md": "83ae61408a8e8db3e134d4d3d2853a002a349043aa57e882e39604b38b7da978"
       }
     },
     "review": {
@@ -52,7 +52,7 @@
       "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-review",
       "targetPath": ".agents/skills/review",
       "installedFiles": {
-        "SKILL.md": "edaa845d81a034c0175fc302032ddd543f5b3bd8b320521d5e2ed51350170362"
+        "SKILL.md": "9f9fabd6b2bdd00d16b5bf6c7666adb067f2a9a80df59fa17a3018e76f7e66bf"
       }
     },
     "ship": {
@@ -61,7 +61,7 @@
       "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-ship",
       "targetPath": ".agents/skills/ship",
       "installedFiles": {
-        "SKILL.md": "ffbe7214ac118b575080f6d516cf585045840ddd8151042457508d3b8d1b6f6f"
+        "SKILL.md": "9d617c0d57600cd7aa68da73c6a12edbb698e73b4588e6d31c767964c475b71b"
       }
     },
     "verify": {
@@ -70,13 +70,40 @@
       "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-verify",
       "targetPath": ".agents/skills/verify",
       "installedFiles": {
-        "SKILL.md": "c2c5c16c9ba05a3835f2945aed65e2adf2f413d0baf2753f9c21c10093ce484b"
+        "SKILL.md": "7bed8ab5910303c33c3e9a53bf1458dee46a77a235fff0bb439756599293282e"
+      }
+    },
+    "mermaid": {
+      "managed": true,
+      "sourceSkill": "ah-mermaid",
+      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-mermaid",
+      "targetPath": ".agents/skills/mermaid",
+      "installedFiles": {
+        "SKILL.md": "34d0309adf949c6190f25a8b415bae8c8bab1a2bb7f367e5d337f8e322557513"
+      }
+    },
+    "executor": {
+      "managed": true,
+      "sourceSkill": "ah-executor",
+      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-executor",
+      "targetPath": ".agents/skills/executor",
+      "installedFiles": {
+        "SKILL.md": "9e97a0a09cb8bdcf8542d2db2d7cff1028bf5f244dab9d2784543e27948e4c09"
+      }
+    },
+    "memory": {
+      "managed": true,
+      "sourceSkill": "ah-memory",
+      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-memory",
+      "targetPath": ".agents/skills/memory",
+      "installedFiles": {
+        "SKILL.md": "d073439a0722ab1976683d58721b2a3b276c251abaeb248f53b2f304ee46d0d8"
       }
     }
   },
   "source": {
     "repoRoot": "/Users/amirsharif/Projects/agent-harness",
-    "commit": "13d3b1ba9decc62d354510724ab255ecf36e59b9"
+    "commit": "afe2b3cf5666dd25afb27fe4b6dbf947a3c814a3"
   },
   "targetRoot": "/Users/amirsharif/Projects/agent-harness"
 }

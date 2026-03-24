@@ -28,6 +28,7 @@ export type SetupPaths = {
   repoRoot: string;
   sourceDir: string;
   targetAgentsDir: string;
+  targetDiagramsDir: string;
   targetDir: string;
   targetLogsDir: string;
   targetRoot: string;

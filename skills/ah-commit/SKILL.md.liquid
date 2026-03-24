@@ -1,6 +1,6 @@
 ---
 name: ah-commit
-description: Reviews current unstaged work, proposes one or more staging sets, and drafts commits for user approval.
+description: Review current unstaged or partially staged work, propose one or more coherent staging sets, and draft commits for user approval. Use when the user wants help preparing commits, splitting changes into clean commits, or deciding what should stay unstaged.
 ---
 
 Prepare one or more commits without actually creating them until the user approves.
@@ -24,7 +24,7 @@ Behavior:
    - explain any uncertain cases briefly
 4. Draft the commits before taking action:
    - summarize each proposed commit in plain language
-   - draft a concise commit title for each group that reflects why the grouped changes belong together
+   - draft a concise conventional-commit title for each group that reflects why the grouped changes belong together
    - note any missing verification that should happen before commit if it is relevant
 5. Ask for approval before staging or committing.
    - do not run `git add` or `git commit` unless the user explicitly approves
@@ -37,6 +37,7 @@ Commit rules:
 - Treat unrelated files as out of scope unless there is strong evidence they are required.
 - Do not include files that likely contain secrets or environment-specific credentials.
 - Do not assume generated files should be committed unless the repo clearly tracks them.
+- Always write commit titles in Conventional Commit format such as `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `build:`, or `chore:`.
 - Keep the proposal actionable: commit groups, rationale, commit titles, file lists, and approval step.
 
 Output format:

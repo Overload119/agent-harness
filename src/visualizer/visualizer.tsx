@@ -1,20 +1,12 @@
 import * as React from "react";
 
-import { type PrdCard } from "./cards";
-
-type CardSummary = {
-  done: number;
-  in_progress: number;
-  invalid: number;
-  planned: number;
-  tasksDone: number;
-  tasksTotal: number;
-  total: number;
-};
+import { type PrdCard, type RunCard } from "./cards";
+import { DEFAULT_VISIBILITY_FILTERS, countWorkspaces, filterEntries, filterStatusMessage, summarizeCards, summarizeHiddenItems, type CardSummary, type VisibilityFilters } from "./dashboard";
 
 const CLOCK_MS = 1000;
 const POLL_MS = 2000;
 const API_PRDS_ROUTE = "/__ah_vis__/api/prds";
+const API_RUNS_ROUTE = "/__ah_vis__/api/runs";
 const SHUTDOWN_ROUTE = "/__ah_vis__/shutdown";
 
 const pageStyle: React.CSSProperties = {
@@ -74,6 +66,16 @@ const closeButtonStyle: React.CSSProperties = {
   background: "#8a1c2b",
 };
 
+const filterChipStyle: React.CSSProperties = {
+  borderRadius: "999px",
+  border: "1px solid rgba(31, 41, 51, 0.14)",
+  padding: "10px 14px",
+  background: "rgba(255, 252, 246, 0.9)",
+  color: "#1f2933",
+  cursor: "pointer",
+  fontWeight: 600,
+};
+
 const clockCardStyle: React.CSSProperties = {
   ...panelStyle,
   padding: "18px 20px",
@@ -81,17 +83,26 @@ const clockCardStyle: React.CSSProperties = {
   justifySelf: "end",
 };
 
-function emptySummary(): CardSummary {
-  return { done: 0, in_progress: 0, invalid: 0, planned: 0, tasksDone: 0, tasksTotal: 0, total: 0 };
-}
-
-async function loadPrdCardsFromApi(): Promise<{ cards: PrdCard[]; cwd: string }> {
+async function loadPrdCardsFromApi(): Promise<{ cards: PrdCard[]; harnessRoot: string; workspaceCount: number }> {
   const response = await fetch(API_PRDS_ROUTE, { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Could not load PRDs: ${response.status} ${response.statusText}`);
   }
 
-  return response.json() as Promise<{ cards: PrdCard[]; cwd: string }>;
+  return response.json() as Promise<{ cards: PrdCard[]; harnessRoot: string; runs: RunCard[]; staleRunCount: number; workspaceCount: number }>;
+}
+
+async function deleteRunFromApi(fileName: string): Promise<void> {
+  const response = await fetch(`${API_RUNS_ROUTE}?file=${encodeURIComponent(fileName)}`, {
+    method: "DELETE",
+    headers: {
+      accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Could not delete run file: ${response.status} ${response.statusText}`);
+  }
 }
 
 function formatTimestamp(value: number) {
@@ -103,6 +114,27 @@ function formatTimestamp(value: number) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function formatAge(value: number) {
+  if (!value) {
+    return "Unknown";
+  }
+
+  const delta = Math.max(0, Date.now() - value);
+  const minutes = Math.floor(delta / 60000);
+  const hours = Math.floor(delta / 3600000);
+  const days = Math.floor(delta / 86400000);
+
+  if (days > 0) {
+    return `${days}d ago`;
+  }
+
+  if (hours > 0) {
+    return `${hours}h ago`;
+  }
+
+  return `${Math.max(1, minutes)}m ago`;
 }
 
 function formatLiveDateTime(value: number) {
@@ -202,6 +234,22 @@ function statusPalette(status: PrdCard["status"]) {
   return { bg: "#d8e7ff", fg: "#1d4d8f", label: "Planned" };
 }
 
+function runStatusPalette(run: RunCard) {
+  if (run.isStale) {
+    return { bg: "#f8d7da", fg: "#8a1c2b", label: "Stale" };
+  }
+
+  if (run.status === "running") {
+    return { bg: "#fde7c6", fg: "#9a5314", label: "Running" };
+  }
+
+  if (run.status === "completed") {
+    return { bg: "#d6f5df", fg: "#146c2e", label: "Completed" };
+  }
+
+  return { bg: "#d8e7ff", fg: "#1d4d8f", label: run.status || "Unknown" };
+}
+
 export function Visualizer(): React.ReactElement {
   const [cards, setCards] = React.useState<PrdCard[]>([]);
   const [closeMessage, setCloseMessage] = React.useState("");
@@ -209,8 +257,13 @@ export function Visualizer(): React.ReactElement {
   const [error, setError] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
   const [now, setNow] = React.useState(() => Date.now());
-  const [repoName, setRepoName] = React.useState("");
+  const [harnessRoot, setHarnessRoot] = React.useState("");
   const [lastUpdated, setLastUpdated] = React.useState(0);
+  const [runs, setRuns] = React.useState<RunCard[]>([]);
+  const [staleRunCount, setStaleRunCount] = React.useState(0);
+  const [workspaceCount, setWorkspaceCount] = React.useState(0);
+  const [pendingDelete, setPendingDelete] = React.useState("");
+  const [filters, setFilters] = React.useState<VisibilityFilters>(DEFAULT_VISIBILITY_FILTERS);
 
   const refresh = React.useCallback(async () => {
     setIsLoading(true);
@@ -218,7 +271,10 @@ export function Visualizer(): React.ReactElement {
     try {
       const next = await loadPrdCardsFromApi();
       setCards(next.cards);
-      setRepoName(next.cwd);
+      setHarnessRoot(next.harnessRoot);
+      setRuns(next.runs);
+      setStaleRunCount(next.staleRunCount);
+      setWorkspaceCount(next.workspaceCount);
       setError("");
       setLastUpdated(Date.now());
     } catch (nextError) {
@@ -227,6 +283,22 @@ export function Visualizer(): React.ReactElement {
       setIsLoading(false);
     }
   }, []);
+
+  const requestRunDelete = React.useCallback(
+    async (fileName: string) => {
+      setPendingDelete(fileName);
+
+      try {
+        await deleteRunFromApi(fileName);
+        await refresh();
+      } catch (nextError) {
+        setError(nextError instanceof Error ? nextError.message : "Could not delete run file.");
+      } finally {
+        setPendingDelete("");
+      }
+    },
+    [refresh],
+  );
 
   React.useEffect(() => {
     const timer = window.setInterval(() => {
@@ -275,15 +347,13 @@ export function Visualizer(): React.ReactElement {
     }
   }, []);
 
-  const summary = React.useMemo(() => {
-    return cards.reduce<CardSummary>((accumulator, card) => {
-      accumulator.total += 1;
-      accumulator.tasksDone += card.tasksDone;
-      accumulator.tasksTotal += card.tasksTotal;
-      accumulator[card.status] += 1;
-      return accumulator;
-    }, emptySummary());
-  }, [cards]);
+  const summary = React.useMemo(() => summarizeCards(cards), [cards]);
+
+  const visibleRuns = React.useMemo(() => filterEntries(runs, filters), [filters, runs]);
+  const visibleCards = React.useMemo(() => filterEntries(cards, filters), [cards, filters]);
+  const visibleSummary = React.useMemo(() => summarizeCards(visibleCards), [visibleCards]);
+  const visibleWorkspaceCount = React.useMemo(() => countWorkspaces(visibleRuns, visibleCards), [visibleRuns, visibleCards]);
+  const visibleStaleRunCount = React.useMemo(() => visibleRuns.filter((run) => run.isStale).length, [visibleRuns]);
 
   React.useEffect(() => {
     document.title = browserTitle(summary);
@@ -291,11 +361,48 @@ export function Visualizer(): React.ReactElement {
   }, [summary]);
 
   const statTiles = [
-    { label: "PRDs", value: String(summary.total) },
-    { label: "Tasks done", value: `${summary.tasksDone}/${summary.tasksTotal}` },
-    { label: "In progress", value: String(summary.in_progress) },
-    { label: "Done", value: String(summary.done) },
+    {
+      label: "PRDs",
+      value: `${visibleSummary.total}/${summary.total}`,
+      detail: summarizeHiddenItems(visibleSummary.total, summary.total, "PRDs"),
+    },
+    {
+      label: "Tasks done",
+      value: `${visibleSummary.tasksDone}/${visibleSummary.tasksTotal}`,
+      detail:
+        summary.tasksTotal > visibleSummary.tasksTotal
+          ? `${summary.tasksDone}/${summary.tasksTotal} across all PRDs`
+          : "Visible task totals match all PRDs",
+    },
+    {
+      label: "In progress",
+      value: `${visibleSummary.in_progress}/${summary.in_progress}`,
+      detail: summarizeHiddenItems(visibleSummary.in_progress, summary.in_progress, "active PRDs"),
+    },
+    {
+      label: "Worktrees",
+      value: `${visibleWorkspaceCount}/${workspaceCount}`,
+      detail: summarizeHiddenItems(visibleWorkspaceCount, workspaceCount, "worktrees"),
+    },
+    {
+      label: "Runs",
+      value: `${visibleRuns.length}/${runs.length}`,
+      detail: summarizeHiddenItems(visibleRuns.length, runs.length, "runs"),
+    },
+    {
+      label: "Stale runs",
+      value: `${visibleStaleRunCount}/${staleRunCount}`,
+      detail: summarizeHiddenItems(visibleStaleRunCount, staleRunCount, "stale runs"),
+    },
   ];
+
+  const defaultFiltersActive = !filters.showDemo || !filters.showTestFixture;
+  const filtersMessage = filterStatusMessage(filters, {
+    visibleRuns: visibleRuns.length,
+    totalRuns: runs.length,
+    visibleCards: visibleCards.length,
+    totalCards: cards.length,
+  });
 
   return (
     <div style={pageStyle}>
@@ -317,7 +424,7 @@ export function Visualizer(): React.ReactElement {
                 PRD status at a glance
               </h1>
               <p style={{ margin: 0, maxWidth: "700px", fontSize: "16px", color: "#52606d" }}>
-                Watch the current folder, poll `.agent-harness/prds`, and turn raw PRD JSON into a friendlier status board.
+                Watch the global harness state in `~/.agent-harness`, follow tracked worktrees, and turn distributed PRD JSON into a friendlier status board.
               </p>
               <div style={{ color: "#52606d", fontSize: "14px", fontWeight: 600 }}>{browserTitle(summary)}</div>
             </div>
@@ -330,7 +437,13 @@ export function Visualizer(): React.ReactElement {
           </div>
 
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
-            <div style={{ ...panelStyle, padding: "10px 16px", fontSize: "14px", color: "#364152" }}>Watching {repoName || "current folder"}</div>
+            <div style={{ ...panelStyle, padding: "10px 16px", fontSize: "14px", color: "#364152" }}>
+              Watching {harnessRoot || "~/.agent-harness"}
+            </div>
+
+            <div style={{ ...panelStyle, padding: "10px 16px", fontSize: "14px", color: "#364152" }}>
+              Tracking {visibleWorkspaceCount}/{workspaceCount} worktree{workspaceCount === 1 ? "" : "s"}
+            </div>
 
             <button
               disabled={isLoading}
@@ -345,7 +458,41 @@ export function Visualizer(): React.ReactElement {
               {closePending ? "Closing..." : "Close"}
             </button>
 
-            <span style={{ color: "#52606d", fontSize: "14px" }}>{repoName ? `Polling ${repoName}/.agent-harness/prds` : "Polling current folder"}</span>
+            <span style={{ color: "#52606d", fontSize: "14px" }}>
+              {harnessRoot ? `Polling ${harnessRoot}/runs and referenced worktree PRDs` : "Polling ~/.agent-harness"}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
+            <button
+              aria-pressed={filters.showDemo}
+              onClick={() => setFilters((current) => ({ ...current, showDemo: !current.showDemo }))}
+              style={{
+                ...filterChipStyle,
+                background: filters.showDemo ? "#1f2933" : filterChipStyle.background,
+                color: filters.showDemo ? "#fffaf1" : filterChipStyle.color,
+              }}
+              type="button"
+            >
+              {filters.showDemo ? "Showing demo worktrees" : "Hiding demo worktrees"}
+            </button>
+
+            <button
+              aria-pressed={filters.showTestFixture}
+              onClick={() => setFilters((current) => ({ ...current, showTestFixture: !current.showTestFixture }))}
+              style={{
+                ...filterChipStyle,
+                background: filters.showTestFixture ? "#1f2933" : filterChipStyle.background,
+                color: filters.showTestFixture ? "#fffaf1" : filterChipStyle.color,
+              }}
+              type="button"
+            >
+              {filters.showTestFixture ? "Showing test and fixture entries" : "Hiding test and fixture entries"}
+            </button>
+
+            <span style={{ color: "#52606d", fontSize: "14px" }}>
+              {filtersMessage}
+            </span>
           </div>
 
           {closeMessage ? <div style={{ color: "#7a3411", background: "#fff7ed", borderRadius: "16px", padding: "12px 14px" }}>{closeMessage}</div> : null}
@@ -356,18 +503,146 @@ export function Visualizer(): React.ReactElement {
               <div key={tile.label} style={{ ...panelStyle, padding: "18px" }}>
                 <div style={{ fontSize: "13px", color: "#7c6752", marginBottom: "8px" }}>{tile.label}</div>
                 <div style={{ fontSize: "30px", fontWeight: 700 }}>{tile.value}</div>
+                <div style={{ fontSize: "13px", color: "#52606d", marginTop: "8px", lineHeight: 1.4 }}>{tile.detail}</div>
               </div>
             ))}
           </div>
         </section>
 
         <section style={{ display: "grid", gap: "18px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: "24px", fontFamily: '"IBM Plex Serif", Georgia, serif' }}>Agent runs</h2>
+              <div style={{ color: "#52606d", fontSize: "14px", marginTop: "6px" }}>
+                Run files come from `~/.agent-harness/runs`. Showing {visibleRuns.length} of {runs.length} runs; entries older than a week are flagged as stale and can be removed with one click.
+              </div>
+            </div>
+          </div>
+
+          {runs.length === 0 ? (
+            <div style={{ ...panelStyle, padding: "24px" }}>No run state files found in `~/.agent-harness/runs`.</div>
+          ) : visibleRuns.length === 0 ? (
+            <div style={{ ...panelStyle, padding: "24px" }}>No agent runs match the current filters. Use the filter chips above to reveal demo or test entries.</div>
+          ) : (
+            visibleRuns.map((run) => {
+              const palette = runStatusPalette(run);
+
+              return (
+                <article key={run.fileName} style={{ ...panelStyle, padding: "22px", display: "grid", gap: "14px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", alignItems: "start" }}>
+                    <div style={{ display: "grid", gap: "6px" }}>
+                      <div style={{ fontSize: "13px", color: "#7c6752" }}>{run.fileName}</div>
+                      <h2 style={{ margin: 0, fontSize: "24px", fontFamily: '"IBM Plex Serif", Georgia, serif' }}>{run.project}</h2>
+                      <div style={{ color: "#52606d", fontSize: "14px" }}>{run.branchName}</div>
+                      <div style={{ color: "#52606d", fontSize: "13px", wordBreak: "break-all" }}>{run.workspacePath}</div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                      <span
+                        style={{
+                          background: palette.bg,
+                          color: palette.fg,
+                          padding: "8px 12px",
+                          borderRadius: "999px",
+                          fontWeight: 700,
+                          fontSize: "13px",
+                        }}
+                      >
+                        {palette.label}
+                      </span>
+
+                      {run.isStale ? (
+                        <button
+                          disabled={pendingDelete === run.fileName}
+                          style={closeButtonStyle}
+                          onClick={() => void requestRunDelete(run.fileName)}
+                          type="button"
+                        >
+                          {pendingDelete === run.fileName ? "Removing..." : "Remove stale file"}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px" }}>
+                    <div style={{ padding: "14px", borderRadius: "16px", background: "rgba(31, 41, 51, 0.04)" }}>
+                      <div style={{ fontSize: "12px", color: "#7c6752", marginBottom: "6px" }}>Phase</div>
+                      <strong>{run.phase}</strong>
+                    </div>
+                    <div style={{ padding: "14px", borderRadius: "16px", background: "rgba(31, 41, 51, 0.04)" }}>
+                      <div style={{ fontSize: "12px", color: "#7c6752", marginBottom: "6px" }}>Iteration</div>
+                      <strong>{run.iteration || "-"}</strong>
+                    </div>
+                    <div style={{ padding: "14px", borderRadius: "16px", background: "rgba(31, 41, 51, 0.04)" }}>
+                      <div style={{ fontSize: "12px", color: "#7c6752", marginBottom: "6px" }}>Heartbeat</div>
+                      <strong>{formatTimestamp(run.lastHeartbeatAt)}</strong>
+                      <div style={{ color: "#52606d", fontSize: "12px", marginTop: "4px" }}>{formatAge(run.lastHeartbeatAt)}</div>
+                    </div>
+                    <div style={{ padding: "14px", borderRadius: "16px", background: "rgba(31, 41, 51, 0.04)" }}>
+                      <div style={{ fontSize: "12px", color: "#7c6752", marginBottom: "6px" }}>PID</div>
+                      <strong>{run.pid ?? "-"}</strong>
+                    </div>
+                  </div>
+
+                  {run.currentTaskId ? (
+                    <div style={{ color: "#364152", lineHeight: 1.5 }}>
+                      <strong>Current task:</strong> {run.currentTaskId}
+                    </div>
+                  ) : null}
+
+                  {run.lastMessage ? (
+                    <div style={{ color: "#364152", lineHeight: 1.5 }}>
+                      <strong>Last message:</strong> {run.lastMessage}
+                    </div>
+                  ) : null}
+
+                  {run.command ? (
+                    <div style={{ color: "#52606d", fontSize: "13px", wordBreak: "break-all" }}>
+                      <strong>Command:</strong> {run.command}
+                    </div>
+                  ) : null}
+
+                  {run.logPath ? (
+                    <div style={{ color: "#52606d", fontSize: "13px", wordBreak: "break-all" }}>
+                      <strong>Log:</strong> {run.logPath}
+                    </div>
+                  ) : null}
+
+                  {run.error ? (
+                    <div style={{ color: "#8a1c2b", background: "#fff2f2", borderRadius: "14px", padding: "12px 14px" }}>{run.error}</div>
+                  ) : null}
+                </article>
+              );
+            })
+          )}
+        </section>
+
+        <section style={{ display: "grid", gap: "18px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: "24px", fontFamily: '"IBM Plex Serif", Georgia, serif' }}>PRD cards</h2>
+              <div style={{ color: "#52606d", fontSize: "14px", marginTop: "6px" }}>
+                Showing {visibleCards.length} of {cards.length} PRDs and {visibleSummary.tasksDone}/{visibleSummary.tasksTotal} visible tasks passed.
+                {summary.tasksTotal > visibleSummary.tasksTotal ? ` Global total: ${summary.tasksDone}/${summary.tasksTotal}.` : ""}
+              </div>
+            </div>
+            {defaultFiltersActive ? (
+              <div style={{ ...panelStyle, padding: "10px 16px", fontSize: "14px", color: "#364152" }}>
+                Default filters are on
+              </div>
+            ) : null}
+          </div>
+
           {cards.length === 0 ? (
             <div style={{ ...panelStyle, padding: "24px" }}>
-              No PRD JSON files found in `.agent-harness/prds` for the current folder.
+              No tracked PRD JSON files found. Add run state files under `~/.agent-harness/runs` that point at repo or worktree paths.
+            </div>
+          ) : visibleCards.length === 0 ? (
+            <div style={{ ...panelStyle, padding: "24px" }}>
+              No PRD cards match the current filters. Reveal demo or test entries to inspect the hidden projects.
             </div>
           ) : (
-            cards.map((card) => {
+            visibleCards.map((card) => {
               const palette = statusPalette(card.status);
 
               return (
@@ -377,6 +652,7 @@ export function Visualizer(): React.ReactElement {
                       <div style={{ fontSize: "13px", color: "#7c6752" }}>{card.fileName}</div>
                       <h2 style={{ margin: 0, fontSize: "24px", fontFamily: '"IBM Plex Serif", Georgia, serif' }}>{card.project}</h2>
                       <div style={{ color: "#52606d", fontSize: "14px" }}>{card.branchName}</div>
+                      <div style={{ color: "#52606d", fontSize: "13px", wordBreak: "break-all" }}>{card.workspacePath}</div>
                     </div>
                     <span
                       style={{

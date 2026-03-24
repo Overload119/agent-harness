@@ -1,6 +1,6 @@
 ---
 name: ah-review
-description: Produces a structured review focused on correctness, regressions, missing coverage, and clear next actions.
+description: Produce a structured review focused on correctness, regressions, missing coverage, and clear next actions. Use when completed or in-progress work needs a concise, implementation-aware review before handoff or further execution.
 ---
 
 Review completed or in-progress work and produce a structured, implementation-aware assessment.
