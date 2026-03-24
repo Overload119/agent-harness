@@ -19,6 +19,7 @@ Behavior:
 3. If browser verification is relevant and feasible:
    - use the `agent-browser` skill for navigation, interaction, screenshots, and observed behavior
    - capture concrete evidence such as pages visited, assertions made, and any failures encountered
+   - when verification produces visual proof such as screenshots, saved HTML, or other browser-openable artifacts, include the exact local file path in the final answer so the user can open it immediately
 4. If browser verification is not the right fit:
    - say why not
    - recommend the most appropriate non-browser checks
@@ -32,6 +33,7 @@ Verification rules:
 - Distinguish between `verified`, `partially verified`, and `not verified`.
 - Prefer reproducible checks over vague statements like "looks good".
 - If the user asks for browser verification but the repo does not expose a runnable browser target, explain that limitation plainly.
+- If visual proof exists, surface it explicitly with a clickable file path instead of making the user ask where it is.
 
 Output format:
 
@@ -39,6 +41,7 @@ Output format:
 - Verification strategy
 - Result
 - Evidence
+- Visual proof
 - Blockers / gaps
 - Recommended next checks
 

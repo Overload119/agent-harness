@@ -126,6 +126,7 @@ test("setup installs shipped skills, writes managed metadata, creates harness di
        mcp?: Record<string, { command?: string[]; enabled?: boolean; type?: string }>;
      };
      const mermaidSkill = await readFile(path.join(installedSkillsDir, "mermaid", "SKILL.md"), "utf8");
+     const verifySkill = await readFile(path.join(installedSkillsDir, "verify", "SKILL.md"), "utf8");
      const memoryPlugin = await readFile(opencodePluginPath, "utf8");
 
      expect(installOutput).toContain("Updated .gitignore: added .agent-harness/");
@@ -154,6 +155,11 @@ test("setup installs shipped skills, writes managed metadata, creates harness di
      expect(memoryPlugin).toContain("Managed by agent-harness setup.");
      expect(memoryPlugin).toContain("experimental.chat.system.transform");
      expect(mermaidSkill).toContain(".agent-harness/diagrams/");
+     expect(mermaidSkill).toContain("beautiful-mermaid");
+     expect(mermaidSkill).toContain("renderMermaidSVG");
+     expect(mermaidSkill).toContain("plan flow");
+     expect(verifySkill).toContain("Visual proof");
+     expect(verifySkill).toContain("exact local file path");
 
     const managedSkillPath = path.join(installedSkillsDir, "plan", "SKILL.md");
     const originalManagedSkill = await readFile(managedSkillPath, "utf8");
