@@ -34,7 +34,7 @@
       "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-plan",
       "targetPath": ".agents/skills/plan",
       "installedFiles": {
-        "SKILL.md": "e7b00bea698fb012730bb5fcb5bbb2a4d629c09ca3fffeb52be308ff6d458c32"
+        "SKILL.md": "1e226e0f76810df5eac6e8704bd67e9f10648df00cf07c63ac5f89279a11c55b"
       }
     },
     "prd": {
@@ -43,7 +43,7 @@
       "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-prd",
       "targetPath": ".agents/skills/prd",
       "installedFiles": {
-        "SKILL.md": "83ae61408a8e8db3e134d4d3d2853a002a349043aa57e882e39604b38b7da978"
+        "SKILL.md": "88fe41c5f1d6fa312f6350aac410834a964b2db6dbf61529ed3fa9819e052eb6"
       }
     },
     "review": {
@@ -103,7 +103,7 @@
   },
   "source": {
     "repoRoot": "/Users/amirsharif/Projects/agent-harness",
-    "commit": "b57abde58cd04c52f45f2eac5afdc8260b63e40f"
+    "commit": "f3302da14f26955a77fba7aba84f89feb1fcc42f"
   },
   "targetRoot": "/Users/amirsharif/Projects/agent-harness"
 }

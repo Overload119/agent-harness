@@ -80,3 +80,9 @@ Verification / Definition of done
 ```
 
 If the input is not a file, return the same structure directly in the response.
+
+Always end the response by asking what the user wants to do next, and present numbered options. Include these choices at a minimum:
+
+1. Create a PRD from this plan
+2. Make changes to this plan
+3. Improve this plan
