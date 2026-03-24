@@ -67,10 +67,10 @@
     "verify": {
       "managed": true,
       "sourceSkill": "ah-verify",
-      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-verify",
+      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/brazen-temperature/skills/ah-verify",
       "targetPath": ".agents/skills/verify",
       "installedFiles": {
-        "SKILL.md": "7bed8ab5910303c33c3e9a53bf1458dee46a77a235fff0bb439756599293282e"
+        "SKILL.md": "70e31b7bf05fcdd752fd6b8b1476f89c1ed32c48c2e6d147717c3e3b6ec0c6bb"
       }
     },
     "mermaid": {
@@ -79,16 +79,16 @@
       "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-mermaid",
       "targetPath": ".agents/skills/mermaid",
       "installedFiles": {
-        "SKILL.md": "34d0309adf949c6190f25a8b415bae8c8bab1a2bb7f367e5d337f8e322557513"
+        "SKILL.md": "ac5a37ef8c463ea072707257b49d958e723199c64d739548a726e6b6876b4105"
       }
     },
     "executor": {
       "managed": true,
       "sourceSkill": "ah-executor",
-      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-executor",
+      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/brazen-temperature/skills/ah-executor",
       "targetPath": ".agents/skills/executor",
       "installedFiles": {
-        "SKILL.md": "9e97a0a09cb8bdcf8542d2db2d7cff1028bf5f244dab9d2784543e27948e4c09"
+        "SKILL.md": "649c6071995aee0d50d72d3826b07a307adc61c11f49b0bf772c5aac32611d51"
       }
     },
     "memory": {
@@ -102,8 +102,8 @@
     }
   },
   "source": {
-    "repoRoot": "/Users/amirsharif/Projects/agent-harness",
-    "commit": "f3302da14f26955a77fba7aba84f89feb1fcc42f"
+    "repoRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/brazen-temperature",
+    "commit": "3b64e2b75d2bb0ff741474112c2ae677ad81992e"
   },
-  "targetRoot": "/Users/amirsharif/Projects/agent-harness"
+  "targetRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/brazen-temperature"
 }

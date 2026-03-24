@@ -1,6 +1,6 @@
 ---
 name: ah-mermaid
-description: Create Mermaid diagrams from plans, workflows, or architecture ideas, render them to a local HTML canvas, and keep both source and rendered artifacts in the harness. Use when the user wants a visual diagram, flowchart, sequence, or architecture view captured as a harness artifact.
+description: Create Mermaid diagrams from plans, workflows, or architecture ideas, render them to a standalone HTML artifact with an inline SVG from `beautiful-mermaid`, and keep both source and rendered artifacts in the harness. Use when the user wants a visual diagram, flowchart, sequence, or architecture view captured as a harness artifact.
 ---
 
 Turn a plan, workflow, or architecture idea into a durable Mermaid visualization.
@@ -24,8 +24,10 @@ Behavior:
    - prefer a fenced ```mermaid block so the source is readable in markdown
 4. Create a browser-renderable artifact:
    - write HTML to `./.generated/diagrams/<slug>.html`
-   - render Mermaid in the browser using a lightweight local HTML wrapper
+   - render Mermaid to an SVG with `renderMermaidSVG` from `beautiful-mermaid`
+   - inline the generated `<svg>` into the HTML instead of relying on client-side Mermaid bootstrapping
    - keep the HTML standalone so it can be opened directly with the system browser
+   - if the source came from a plan, preserve the plan order and milestone names in the rendered diagram
 5. If the user asks to open or preview it:
    - open the generated HTML artifact locally
 6. If the user wants a canvas-like editable diagram rather than Mermaid:
@@ -35,6 +37,7 @@ Behavior:
 Diagram rules:
 
 - Optimize for essence, not exhaustiveness.
+- For plans, prefer a left-to-right flow that matches execution order.
 - Keep node labels short and concrete.
 - Split major concerns into subgraphs when helpful.
 - Avoid crossing lines and giant walls of text when a simpler structure works.
