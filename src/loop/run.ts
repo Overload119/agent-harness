@@ -36,6 +36,7 @@ type PrdTask = {
   passes?: boolean;
   notes?: string;
   parallel?: boolean;
+  [key: string]: unknown;
 };
 
 type PrdDocument = {
@@ -110,7 +111,13 @@ function updateTaskNotes(task: PrdTask, note: string): void {
   task.notes = current ? `${current}\n${note}` : note;
 }
 
-function executorPrompt(input: { prdPath: string; runPath: string; taskId: string; worktreePath: string }): string {
+function executorPrompt(input: {
+  prdPath: string;
+  runPath: string;
+  taskId: string;
+  task: PrdTask;
+  worktreePath: string;
+}): string {
   return [
     "/executor",
     "Use the ah-executor skill for this task.",
@@ -121,8 +128,15 @@ function executorPrompt(input: { prdPath: string; runPath: string; taskId: strin
     `- Run state file: ${input.runPath}`,
     `- Worktree path: ${input.worktreePath}`,
     "",
+    "Assigned task:",
+    "```json",
+    JSON.stringify(input.task, null, 2),
+    "```",
+    "",
     "Requirements:",
     "- Work on exactly the assigned task.",
+    "- Treat the assigned task metadata as the primary execution brief.",
+    "- Do not do repo-wide discovery to redefine scope when the handoff or PRD task already provides files, commands, constraints, or acceptance metadata.",
     "- Stay inside this repo checkout.",
     "- Never edit ~/.agent-harness directly.",
     "- Use bin/ah-run-state update to persist shared run progress when useful.",
@@ -139,6 +153,7 @@ async function runExecutor(input: {
   prdPath: string;
   runPath: string;
   taskId: string;
+  task: PrdTask;
   worktreePath: string;
 }): Promise<{ exitCode: number; output: string }> {
   const subprocess = Bun.spawn({
@@ -311,6 +326,7 @@ export async function runLoopCli(argv: string[]): Promise<void> {
         prdPath,
         runPath: actualRunPath,
         taskId: state.currentTaskId,
+        task,
         worktreePath,
       });
 

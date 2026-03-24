@@ -7,6 +7,8 @@ Turn an expanded plan into an executable PRD-style task spec for a subagent loop
 
 Your job is to take a concrete plan and convert it into a deterministic JSON artifact that can be operated on by one-agent-per-task execution.
 
+The PRD must do more than describe work at a high level. It should give the future executor a strong head start by including structured implementation context, likely files, verification hints, dependencies, and notable gotchas for each task.
+
 Behavior:
 
 1. First determine the input source:
@@ -22,10 +24,17 @@ Behavior:
    - each task should have a clear title and description
    - each task should include concrete acceptance criteria
    - mark whether the task can run in parallel
-   - keep dependencies implicit through ordering unless the plan clearly requires otherwise
-4. Create `./.agent-harness/prds` if it does not exist.
-5. Produce a JSON artifact that is stable and easy to diff.
-6. Do not ask repeated questions by default.
+   - make dependencies explicit when they materially affect execution order or parallel safety
+   - include structured executor-facing metadata for how the task should likely be approached
+4. Create an initial PRD draft in memory before writing the final file.
+5. After the draft task list exists, launch one `general` subagent per task to enrich execution context.
+   - run at most 3 subagents in parallel at a time
+   - each subagent should analyze only enough repo context to help that specific task start faster
+   - each subagent must not implement code, rewrite the plan, or broaden scope
+6. Wait for all task-context subagents to finish, then merge their findings back into the PRD deterministically.
+7. Create `./.agent-harness/prds` if it does not exist.
+8. Write the final enriched PRD JSON artifact so it is stable and easy to diff.
+9. Do not ask repeated questions by default.
    - Infer what you can from the plan and repository context.
    - Only ask a question if a missing decision would materially change task breakdown or ordering.
    - If you ask, ask exactly one targeted question and include a recommended default.
@@ -36,11 +45,43 @@ PRD rules:
 - Use one task per meaningful unit of implementation or verification.
 - Keep task descriptions outcome-focused, not vague activity lists.
 - Acceptance criteria must be concrete and testable.
+- Each task must contain enough structured context that an executor can begin with targeted repo inspection instead of broad rediscovery.
 - Include repo-level verification where appropriate, such as tests, typecheck, build, or manual checks.
 - Mark `parallel` as `true` only when the task can be done independently without blocking downstream work.
 - Default `passes` to `false` until the task has been completed and verified.
-- Use empty strings for optional freeform fields like `notes` when there is nothing to add.
+- Use empty strings or empty arrays for optional fields when there is nothing useful to add.
+- Keep all metadata concise, specific, and directly actionable.
+- Prefer likely file paths, symbols, directories, commands, and constraints over generic advice.
+- Do not pretend that research findings are guaranteed facts; if something is likely but not certain, phrase it as a hint or risk.
+- Preserve task order unless the input clearly requires a different dependency structure.
+- Do not store unresolved questions in the PRD. If a missing answer would materially affect the task plan, ask the user before finalizing the PRD.
 - Do not invent deploy steps, credentials, or environment-specific behavior that is not present in the input.
+
+Task-context enrichment workflow:
+
+- After drafting the initial PRD, spin up one `general` subagent per task.
+- Respect a hard limit of 3 concurrently running subagents.
+- Give each subagent the PRD path or draft JSON, the assigned task id, and a narrow mission: gather only the repo context needed so the executor can start quickly.
+- Ask each subagent to return a deterministic payload with these keys:
+  - `taskId`
+  - `summary`
+  - `relevantFiles`
+  - `searchHints`
+  - `dependencyNotes`
+  - `implementationSteps`
+  - `risks`
+  - `verificationHints`
+  - `acceptanceCriteriaSuggestions`
+- Tell subagents that `relevantFiles` must be workspace-local file or directory paths only, relative to the repo root when possible.
+- Tell subagents to keep arrays sorted, avoid duplicates, and keep each string brief.
+- Tell subagents not to edit files, not to re-scope the project, and not to propose changes for unrelated tasks.
+- When all subagents are done, merge their results in original task order.
+- If subagents surface an unresolved question that materially changes implementation, stop and ask the user one targeted question instead of writing that uncertainty into the PRD.
+- Use conservative merge rules:
+  - preserve original task ids, titles, descriptions, and ordering
+  - only add acceptance criteria when they are concrete, testable, and non-duplicative
+  - only add dependencies when there is a clear blocker or prerequisite
+  - record uncertainty under structured risk or notes fields instead of widening scope
 
 Output format:
 
@@ -55,20 +96,78 @@ Use this schema:
 
 ```json
 {
+  "schemaVersion": 2,
   "project": "[Project Name]",
   "branchName": "ralph/[feature-name-kebab-case]",
   "description": "[Feature description from the plan objective]",
+  "execution": {
+    "entryPoints": [
+      "[Likely file or directory to inspect first]"
+    ],
+    "verificationDefaults": [
+      "[Repo-level verification command if relevant]"
+    ],
+    "repoConstraints": [
+      "[Important repo-specific constraint or rule]"
+    ]
+  },
+  "context": [
+    "[Important repo or architecture context]"
+  ],
+  "assumptions": [
+    "[Reasonable inferred assumption]"
+  ],
+  "risks": [
+    "[Cross-task risk or ambiguity]"
+  ],
   "tasks": [
     {
-      "id": "US-001",
-      "title": "[Story title]",
-      "description": "As a [user], I want [feature] so that [benefit]",
+      "id": "AH-001",
+      "title": "[Task title]",
+      "description": "[Outcome-focused task description]",
       "acceptanceCriteria": [
         "Criterion 1",
         "Criterion 2",
         "Typecheck passes"
       ],
-      "priority": 1,
+      "dependsOn": [],
+      "implementationScope": {
+        "summary": "[How this task should likely be approached]",
+        "paths": [
+          "[Likely file path]"
+        ],
+        "symbols": [
+          "[Relevant function, command, component, or module name]"
+        ],
+        "searchHints": [
+          "[Search term, filename, or regex hint]"
+        ],
+        "filesToAvoid": [
+          "[Sensitive or unrelated path to avoid editing, if relevant]"
+        ]
+      },
+      "implementationPlan": [
+        "[Likely implementation step]"
+      ],
+      "verification": {
+        "commands": [
+          "[Task-specific verification command]"
+        ],
+        "manualChecks": [
+          "[Manual validation step if needed]"
+        ]
+      },
+      "handoff": {
+        "doneWhen": [
+          "[Executor-ready definition of done]"
+        ],
+        "artifacts": [
+          "[Artifact, output, or evidence path if relevant]"
+        ]
+      },
+      "gotchas": [
+        "[Specific risk, edge case, or codebase gotcha]"
+      ],
       "passes": false,
       "notes": "",
       "parallel": false
@@ -80,14 +179,21 @@ Use this schema:
 Task construction guidance:
 
 - Use sequential IDs like `AH-001`, `AH-002`, `AH-003`.
-- Set `priority` to execution order, where `1` is the first task to run.
+- Put tasks in execution order, because `ah-loop` currently advances by the first incomplete task in array order.
 - If the plan includes required verification work, represent it in acceptance criteria or as a dedicated task when substantial.
 - If the input is already well structured, preserve the user's intent and only normalize wording and shape.
 - If the input is under-specified, produce the most reasonable minimal executable breakdown rather than expanding scope.
+- Use top-level `execution` for repo-wide defaults and repeated constraints.
+- Use per-task `implementationScope`, `implementationPlan`, `verification`, `handoff`, and `gotchas` to capture executor-ready detail.
+- `implementationScope.paths` should point the executor to the most likely local files or directories to inspect first.
+- `implementationPlan` should be brief, concrete, and actionable, not a generic restatement of the task title.
+- `verification.commands` should be the smallest commands that meaningfully prove the task is done.
+- `gotchas` should call out coupling, hidden dependencies, tricky invariants, or repo-specific pitfalls.
+- Keep fields stable in order and wording so regenerating the PRD produces small diffs.
 
 If the input is a file, read the file and convert it into this JSON format.
 
-If the input is already JSON, validate it against the schema above, fix obvious structural issues, and return the normalized result.
+If the input is already JSON, validate it against the schema above, fix obvious structural issues, enrich missing execution metadata where possible, and return the normalized result.
 
 Always end the response with numbered next-step options. Include these choices at a minimum:
 

@@ -1,4 +1,5 @@
 .agent-harness/
+.agents/agent-harness-install.json
 .DS_Store
 .generated/
 

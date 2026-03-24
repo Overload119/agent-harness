@@ -40,10 +40,10 @@
     "prd": {
       "managed": true,
       "sourceSkill": "ah-prd",
-      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-prd",
+      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/congruous-playroom/skills/ah-prd",
       "targetPath": ".agents/skills/prd",
       "installedFiles": {
-        "SKILL.md": "88fe41c5f1d6fa312f6350aac410834a964b2db6dbf61529ed3fa9819e052eb6"
+        "SKILL.md": "8fa588e8a6e5a97b201d92016bd800c67b7810bf4b4b06e504b6e7e703d7e0ea"
       }
     },
     "review": {
@@ -85,10 +85,10 @@
     "executor": {
       "managed": true,
       "sourceSkill": "ah-executor",
-      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-executor",
+      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/congruous-playroom/skills/ah-executor",
       "targetPath": ".agents/skills/executor",
       "installedFiles": {
-        "SKILL.md": "9e97a0a09cb8bdcf8542d2db2d7cff1028bf5f244dab9d2784543e27948e4c09"
+        "SKILL.md": "248c371bdcb0fb63292e1ad59f53365cee3525a2d66c5d79b5929159aca86b02"
       }
     },
     "memory": {
@@ -102,8 +102,8 @@
     }
   },
   "source": {
-    "repoRoot": "/Users/amirsharif/Projects/agent-harness",
-    "commit": "f3302da14f26955a77fba7aba84f89feb1fcc42f"
+    "repoRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/congruous-playroom",
+    "commit": "3b64e2b75d2bb0ff741474112c2ae677ad81992e"
   },
-  "targetRoot": "/Users/amirsharif/Projects/agent-harness"
+  "targetRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/congruous-playroom"
 }
