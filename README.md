@@ -13,12 +13,26 @@ Install bun.
 Run this command in the repo you want to bootstrap with this harness.
 
 ```bash
-mkdir -p /tmp/agent-harness && git clone https://github.com/garrytan/agent-harness.git /tmp/agent-harness && /tmp/agent-harness/bin/setup
+curl -fsSL https://raw.githubusercontent.com/overload119/agent-harness/main/install.sh | bash
 ```
+
+The installer script clones the harness into a temporary directory, runs `bin/setup` in your current repo, and cleans up after itself.
 
 By default, `bin/setup` reads skills from the cloned harness repo, installs them into the repo in your current working directory, and bootstraps AgentKits Memory for OpenCode.
 
 Before it makes changes, `bin/setup` prompts for confirmation and shows the current repo path it will install into.
+
+If you want to pass flags through to `bin/setup`, use `bash -s --`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/overload119/agent-harness/main/install.sh | bash -s -- --dry
+```
+
+If you prefer the explicit clone-and-run flow, this still works:
+
+```bash
+mkdir -p /tmp/agent-harness && git clone https://github.com/overload119/agent-harness.git /tmp/agent-harness && /tmp/agent-harness/bin/setup
+```
 
 ## Skills
 
