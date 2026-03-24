@@ -94,6 +94,7 @@ test("setup installs shipped skills, writes managed metadata, creates harness di
     const dryRunOutput = await runSetupAndCapture(dryRunRoot, { dry: true });
 
     expect(dryRunOutput).toContain("Would update .gitignore: add .agent-harness/");
+    expect(dryRunOutput).toContain("Would update .gitignore: add .agents/agent-harness-install.json");
     expect(dryRunOutput).toContain("Would install: agent-memory mcp");
     expect(dryRunOutput).toContain("Would install: agent-memory opencode plugin");
     expect(dryRunOutput).toContain("Would install: plan");
@@ -129,6 +130,7 @@ test("setup installs shipped skills, writes managed metadata, creates harness di
      const memoryPlugin = await readFile(opencodePluginPath, "utf8");
 
      expect(installOutput).toContain("Updated .gitignore: added .agent-harness/");
+     expect(installOutput).toContain("Updated .gitignore: added .agents/agent-harness-install.json");
      expect(installOutput).toContain("install: agent-memory mcp");
      expect(installOutput).toContain("install: agent-memory opencode plugin");
      expect(installOutput).toContain("install: plan");
@@ -143,6 +145,7 @@ test("setup installs shipped skills, writes managed metadata, creates harness di
       targetPath: ".agents/skills/plan",
     });
      expect(gitignoreLines.filter((line) => line === ".agent-harness/")).toHaveLength(1);
+     expect(gitignoreLines.filter((line) => line === ".agents/agent-harness-install.json")).toHaveLength(1);
      expect(await pathExists(path.join(installRoot, ".agent-harness", "diagrams"))).toBe(true);
      expect(await pathExists(path.join(installRoot, ".agent-harness", "logs"))).toBe(true);
      expect(opencodeConfig.$schema).toBe("https://opencode.ai/config.json");
@@ -169,9 +172,10 @@ test("setup installs shipped skills, writes managed metadata, creates harness di
     const restoredManagedSkill = await readFile(managedSkillPath, "utf8");
     const rewrittenGitignoreLines = (await readFile(gitignorePath, "utf8")).trim().split(/\r?\n/);
 
-    expect(overwriteOutput).toContain("update: plan (overwriting local changes with harness files)");
-    expect(restoredManagedSkill).toBe(originalManagedSkill);
-    expect(rewrittenGitignoreLines.filter((line) => line === ".agent-harness/")).toHaveLength(1);
+     expect(overwriteOutput).toContain("update: plan (overwriting local changes with harness files)");
+     expect(restoredManagedSkill).toBe(originalManagedSkill);
+     expect(rewrittenGitignoreLines.filter((line) => line === ".agent-harness/")).toHaveLength(1);
+     expect(rewrittenGitignoreLines.filter((line) => line === ".agents/agent-harness-install.json")).toHaveLength(1);
   } finally {
     await rm(dryRunRoot, { force: true, recursive: true });
     await rm(installRoot, { force: true, recursive: true });
