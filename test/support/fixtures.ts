@@ -1,6 +1,6 @@
 import os from "node:os";
 import path from "node:path";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 
 import { HARNESS_DIR_NAME, homeHarnessRoot, repoHarnessRoot } from "../../src/harness/paths";
 
@@ -12,6 +12,12 @@ export type TempHomeFixture = {
   harnessDir: string;
   runsDir: string;
   logsDir: string;
+  filePath(...segments: string[]): string;
+  missingPath(relativePath: string): string;
+  writeText(relativePath: string, contents: string, options?: WriteFixtureOptions): Promise<string>;
+  writeJson(relativePath: string, value: unknown, options?: WriteFixtureOptions): Promise<string>;
+  writeMalformedJson(relativePath: string, contents?: string, options?: WriteFixtureOptions): Promise<string>;
+  writePartialJson(relativePath: string, value: Record<string, unknown>, options?: WriteFixtureOptions): Promise<string>;
   cleanup(): Promise<void>;
 };
 
@@ -22,13 +28,48 @@ export type RepoFixture = {
   diagramsDir: string;
   logsDir: string;
   filePath(...segments: string[]): string;
-  writeJson(relativePath: string, value: unknown): Promise<string>;
+  missingPath(relativePath: string): string;
+  writeText(relativePath: string, contents: string, options?: WriteFixtureOptions): Promise<string>;
+  writeJson(relativePath: string, value: unknown, options?: WriteFixtureOptions): Promise<string>;
+  writeMalformedJson(relativePath: string, contents?: string, options?: WriteFixtureOptions): Promise<string>;
+  writePartialJson(relativePath: string, value: Record<string, unknown>, options?: WriteFixtureOptions): Promise<string>;
   cleanup(): Promise<void>;
 };
 
 export type CreateRepoFixtureOptions = {
   parentDir?: string;
 };
+
+export type WriteFixtureOptions = {
+  mtimeMs?: number;
+};
+
+async function writeFixtureFile(targetPath: string, contents: string, options: WriteFixtureOptions = {}): Promise<string> {
+  await mkdir(path.dirname(targetPath), { recursive: true });
+  await writeFile(targetPath, contents, "utf8");
+
+  if (options.mtimeMs !== undefined) {
+    const mtime = new Date(options.mtimeMs);
+    await utimes(targetPath, mtime, mtime);
+  }
+
+  return targetPath;
+}
+
+function buildFixtureWriter(rootDir: string) {
+  return {
+    filePath: (...segments: string[]) => path.join(rootDir, ...segments),
+    missingPath: (relativePath: string) => path.join(rootDir, relativePath),
+    writeText: (relativePath: string, contents: string, options?: WriteFixtureOptions) =>
+      writeFixtureFile(path.join(rootDir, relativePath), contents, options),
+    writeJson: (relativePath: string, value: unknown, options?: WriteFixtureOptions) =>
+      writeFixtureFile(path.join(rootDir, relativePath), `${JSON.stringify(value, null, 2)}\n`, options),
+    writeMalformedJson: (relativePath: string, contents = '{"broken": true', options?: WriteFixtureOptions) =>
+      writeFixtureFile(path.join(rootDir, relativePath), contents, options),
+    writePartialJson: (relativePath: string, value: Record<string, unknown>, options?: WriteFixtureOptions) =>
+      writeFixtureFile(path.join(rootDir, relativePath), `${JSON.stringify(value, null, 2)}\n`, options),
+  };
+}
 
 /**
  * Creates an isolated HOME tree for tests that exercise `~/.agent-harness`
@@ -45,12 +86,15 @@ export async function createTempHomeFixture(prefix = "ah-test-home-"): Promise<T
   await mkdir(runsDir, { recursive: true });
   await mkdir(logsDir, { recursive: true });
 
+  const writers = buildFixtureWriter(rootDir);
+
   return {
     rootDir,
     homeDir,
     harnessDir,
     runsDir,
     logsDir,
+    ...writers,
     cleanup: async () => {
       await rm(rootDir, { force: true, recursive: true });
     },
@@ -109,19 +153,15 @@ export async function createRepoFixture(prefix = "ah-test-repo-", options: Creat
   await mkdir(diagramsDir, { recursive: true });
   await mkdir(logsDir, { recursive: true });
 
+  const writers = buildFixtureWriter(rootDir);
+
   return {
     rootDir,
     harnessDir,
     prdsDir,
     diagramsDir,
     logsDir,
-    filePath: (...segments: string[]) => path.join(rootDir, ...segments),
-    writeJson: async (relativePath: string, value: unknown) => {
-      const targetPath = path.join(rootDir, relativePath);
-      await mkdir(path.dirname(targetPath), { recursive: true });
-      await writeFile(targetPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-      return targetPath;
-    },
+    ...writers,
     cleanup: async () => {
       await rm(rootDir, { force: true, recursive: true });
     },

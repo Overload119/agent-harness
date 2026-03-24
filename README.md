@@ -50,13 +50,43 @@ This repo is intentionally recursive: `agent-harness` uses `agent-harness` to bu
 
 ## Testing
 
+This repo uses Bun's built-in test runner only; add new coverage with `bun test` instead of introducing a second test framework.
+
+Test layers:
+
+- Unit tests cover a single module or helper with lightweight fixtures and focused assertions. Place them beside the matching area under `test/<area>/` and name them `<subject>.test.ts`.
+- Integration tests cover filesystem-heavy flows, CLI entrypoints, or multi-module behavior. Keep them in the same `test/<area>/` tree, but organize them around the top-level feature being exercised, such as `test/setup/` or `test/visualizer/`.
+- Shared filesystem helpers belong in `test/support/fixtures.ts`; extend those helpers before copying temp-dir or temp-home setup into a new test file.
+
+Current test layout mirrors the source areas it exercises so contributors can quickly place new file-focused coverage:
+
+- `test/harness/` for harness path helpers
+- `test/loop/` for loop coordination, locks, and PRD execution state
+- `test/run-state/` for `ah-run-state` command parsing and persisted run updates
+- `test/setup/` for setup and install flows
+- `test/visualizer/` for visualizer routes, cards, and snapshot behavior
+- `test/support/` for reusable fixtures and fixture self-tests
+
+Common workflows:
+
+- Full suite: `bun run test`
+- Harness scope: `bun run test:harness`
+- Loop scope: `bun run test:loop`
+- Run-state scope: `bun run test:run-state`
+- Setup scope: `bun run test:setup`
+- Support scope: `bun run test:support`
+- Visualizer scope: `bun run test:visualizer`
+- Single file: `bun run test:file -- test/visualizer/prd-server.test.ts`
+
+When a change touches a specific file, start with the closest matching test directory, add a unit test if the behavior is isolated, and prefer an integration test when the behavior depends on real filesystem state or multiple modules working together.
+
 Run the full repo test suite with:
 
 ```bash
-bun test
+bun run test
 ```
 
-`bun test` is the primary test entrypoint for this repo and runs the harness, setup, and visualizer coverage added for the testing strategy.
+`bun run test` is the primary test entrypoint for this repo and runs the harness, setup, visualizer, and support coverage added for the testing strategy.
 
 ## Visualizer
 

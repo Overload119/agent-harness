@@ -6,3 +6,8 @@
 - This repo uses Bun for scripts. 
 - Never create Python files in this repo for quick automation or helper scripts; prefer Bun/Typescript instead.
 - If the user wants to preview installer effects, prefer `bin/setup --dry`; use `bin/setup --overwrite` only when they explicitly want to apply managed updates.
+- The visualizer backend and UI live under `src/visualizer/`; prefer keeping browser-facing changes aligned with the server routes in `src/visualizer/run.ts` and snapshot/deletion logic in `src/visualizer/prd-server.ts`.
+- Any change that affects shipped CLIs or setup should end with rerunning the repo build scripts via `bun scripts/build.ts`. Treat this as applying to changes for `ah-loop`, `ah-vis`, `setup`, and their CLI entrypoints or shared code paths that flow into `bin/` outputs.
+- Completed PRD cleanup in the visualizer is destructive by design: deleting a finished PRD should also remove same-stem harness artifacts in repo-local dirs like `.agent-harness/diagrams`, `.agent-harness/compounds`, `.agent-harness/plans`, `.agent-harness/reviews`, `.agent-harness/verifications`, plus generated diagram HTML in `.generated/diagrams` when present.
+- When changing visualizer PRD deletion behavior, preserve the safety checks that only accept a JSON file name plus absolute workspace path, and only remove run/log artifacts when a run state's `prdPath` matches the PRD being deleted.
+- Visualizer browser assets are still produced into `.generated/visualizer`; for changes under `src/visualizer/` or other visualizer UI/server inputs, rebuild the visualizer with the repo-supported path and rerun `bun scripts/build.ts` as well when the `ah-vis` CLI or related shipped entrypoints changed.

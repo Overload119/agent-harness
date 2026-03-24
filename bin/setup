@@ -4525,9 +4525,9 @@ async function renderedManifestFor(directory, variables) {
 import { mkdir } from "fs/promises";
 import path4 from "path";
 var MEMORY_SERVER_CONFIG = {
-  type: "stdio",
-  command: "bunx",
-  args: ["--bun", "@aitytech/agentkits-memory", "server"]
+  type: "local",
+  command: ["bunx", "--bun", "@aitytech/agentkits-memory", "server"],
+  enabled: true
 };
 var MANAGED_PLUGIN_HEADER = `// Managed by agent-harness setup.
 `;
@@ -4728,35 +4728,42 @@ export const AgentKitsMemoryPlugin = async ({ $, directory }) => {
 };
 `;
 }
-function desiredMcpContent(existing) {
+function desiredOpencodeConfig(existing) {
   let parsed = {};
   if (existing.trim() !== "") {
     parsed = JSON.parse(existing);
   }
-  const mcpServers = parsed.mcpServers && typeof parsed.mcpServers === "object" && !Array.isArray(parsed.mcpServers) ? { ...parsed.mcpServers } : {};
-  mcpServers.memory = MEMORY_SERVER_CONFIG;
-  return `${JSON.stringify({ ...parsed, mcpServers }, null, 2)}
+  const mcp = parsed.mcp && typeof parsed.mcp === "object" && !Array.isArray(parsed.mcp) ? { ...parsed.mcp } : {};
+  mcp.memory = MEMORY_SERVER_CONFIG;
+  const nextConfig = {
+    ...parsed,
+    mcp
+  };
+  if (typeof nextConfig.$schema !== "string") {
+    nextConfig.$schema = "https://opencode.ai/config.json";
+  }
+  return `${JSON.stringify(nextConfig, null, 2)}
 `;
 }
 async function ensureAgentMemoryIntegration(targetRoot, options) {
-  const mcpPath = path4.join(targetRoot, ".mcp.json");
-  const existingMcp = await readTextIfExists(mcpPath);
-  let nextMcp = "";
+  const opencodeConfigPath = path4.join(targetRoot, "opencode.json");
+  const existingOpencodeConfig = await readTextIfExists(opencodeConfigPath);
+  let nextOpencodeConfig = "";
   try {
-    nextMcp = desiredMcpContent(existingMcp);
+    nextOpencodeConfig = desiredOpencodeConfig(existingOpencodeConfig);
   } catch {
-    console.log(`${options.dryRun ? "Would skip" : "skip"}: agent-memory mcp (.mcp.json is not valid JSON and was left unchanged)`);
+    console.log(`${options.dryRun ? "Would skip" : "skip"}: agent-memory mcp (opencode.json is not valid JSON and was left unchanged)`);
     return;
   }
-  if (existingMcp === "") {
+  if (existingOpencodeConfig === "") {
     console.log(`${options.dryRun ? "Would install" : "install"}: agent-memory mcp`);
     if (!options.dryRun) {
-      await Bun.write(mcpPath, nextMcp);
+      await Bun.write(opencodeConfigPath, nextOpencodeConfig);
     }
-  } else if (existingMcp !== nextMcp) {
+  } else if (existingOpencodeConfig !== nextOpencodeConfig) {
     console.log(`${options.dryRun ? "Would update" : "update"}: agent-memory mcp`);
     if (!options.dryRun) {
-      await Bun.write(mcpPath, nextMcp);
+      await Bun.write(opencodeConfigPath, nextOpencodeConfig);
     }
   } else {
     console.log(`${options.dryRun ? "Would keep" : "up to date"}: agent-memory mcp`);
