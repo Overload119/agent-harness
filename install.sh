@@ -24,6 +24,11 @@ if ! command -v git >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v trash >/dev/null 2>&1; then
+  echo "error: trash is required to install agent-harness" >&2
+  exit 1
+fi
+
 if ! command -v mktemp >/dev/null 2>&1; then
   echo "error: mktemp is required to install agent-harness" >&2
   exit 1
@@ -37,5 +42,5 @@ cleanup() {
 
 trap cleanup EXIT
 
-git clone --depth 1 --branch "$REPO_REF" "$REPO_URL" "$HARNESS_DIR" >/dev/null
+git clone --quiet --depth 1 --branch "$REPO_REF" "$REPO_URL" "$HARNESS_DIR"
 "$HARNESS_DIR/bin/setup" "$@"
