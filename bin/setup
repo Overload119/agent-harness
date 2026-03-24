@@ -4814,6 +4814,7 @@ async function loadMetadata(metadataPath) {
 }
 
 // src/setup/prompt.ts
+import { createReadStream, createWriteStream, openSync } from "fs";
 import process, { stdin as input, stdout as output } from "process";
 import readline from "readline/promises";
 function isYes(value) {
@@ -4821,12 +4822,25 @@ function isYes(value) {
 }
 async function confirmInstall(targetRoot) {
   const prompt = `This will install agent harness into ${targetRoot}. Continue? [y/N] `;
-  if (!input.isTTY) {
+  let terminalInput = input;
+  let terminalOutput = output;
+  if (!input.isTTY || !output.isTTY) {
+    try {
+      const inputFd = openSync("/dev/tty", "r");
+      const outputFd = openSync("/dev/tty", "w");
+      terminalInput = createReadStream("/dev/tty", { fd: inputFd, autoClose: true });
+      terminalOutput = createWriteStream("/dev/tty", { fd: outputFd, autoClose: true });
+    } catch {
+      terminalInput = null;
+      terminalOutput = null;
+    }
+  }
+  if (!terminalInput || !terminalOutput) {
     console.error(prompt);
     console.error("Re-run interactively to confirm the install.");
     process.exit(1);
   }
-  const rl = readline.createInterface({ input, output });
+  const rl = readline.createInterface({ input: terminalInput, output: terminalOutput });
   try {
     const response = await rl.question(prompt);
     if (!isYes(response)) {
@@ -4835,6 +4849,12 @@ async function confirmInstall(targetRoot) {
     }
   } finally {
     rl.close();
+    if (terminalInput !== input) {
+      terminalInput.destroy();
+    }
+    if (terminalOutput !== output) {
+      terminalOutput.end();
+    }
   }
 }
 
