@@ -7,6 +7,7 @@ const CLOCK_MS = 1000;
 const POLL_MS = 2000;
 const API_PRDS_ROUTE = "/__ah_vis__/api/prds";
 const API_RUNS_ROUTE = "/__ah_vis__/api/runs";
+const API_RUNS_VIEW_ROUTE = "/__ah_vis__/api/runs/view";
 const SHUTDOWN_ROUTE = "/__ah_vis__/shutdown";
 
 const pageStyle: React.CSSProperties = {
@@ -83,13 +84,26 @@ const clockCardStyle: React.CSSProperties = {
   justifySelf: "end",
 };
 
-async function loadPrdCardsFromApi(): Promise<{ cards: PrdCard[]; harnessRoot: string; workspaceCount: number }> {
+async function loadPrdCardsFromApi(): Promise<{ cards: PrdCard[]; harnessRoot: string; runs: RunCard[]; staleRunCount: number; workspaceCount: number }> {
   const response = await fetch(API_PRDS_ROUTE, { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Could not load PRDs: ${response.status} ${response.statusText}`);
   }
 
   return response.json() as Promise<{ cards: PrdCard[]; harnessRoot: string; runs: RunCard[]; staleRunCount: number; workspaceCount: number }>;
+}
+
+async function deletePrdFromApi(fileName: string, workspacePath: string): Promise<void> {
+  const response = await fetch(`${API_PRDS_ROUTE}?file=${encodeURIComponent(fileName)}&workspace=${encodeURIComponent(workspacePath)}`, {
+    method: "DELETE",
+    headers: {
+      accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Could not delete PRD artifacts: ${response.status} ${response.statusText}`);
+  }
 }
 
 async function deleteRunFromApi(fileName: string): Promise<void> {
@@ -250,6 +264,15 @@ function runStatusPalette(run: RunCard) {
   return { bg: "#d8e7ff", fg: "#1d4d8f", label: run.status || "Unknown" };
 }
 
+function canManageRun(run: RunCard): boolean {
+  return run.status !== "running";
+}
+
+function viewRun(run: RunCard): void {
+  const viewUrl = `${API_RUNS_VIEW_ROUTE}?file=${encodeURIComponent(run.fileName)}`;
+  window.open(viewUrl, "_blank", "noopener,noreferrer");
+}
+
 export function Visualizer(): React.ReactElement {
   const [cards, setCards] = React.useState<PrdCard[]>([]);
   const [closeMessage, setCloseMessage] = React.useState("");
@@ -262,7 +285,8 @@ export function Visualizer(): React.ReactElement {
   const [runs, setRuns] = React.useState<RunCard[]>([]);
   const [staleRunCount, setStaleRunCount] = React.useState(0);
   const [workspaceCount, setWorkspaceCount] = React.useState(0);
-  const [pendingDelete, setPendingDelete] = React.useState("");
+  const [pendingPrdDelete, setPendingPrdDelete] = React.useState("");
+  const [pendingRunDelete, setPendingRunDelete] = React.useState("");
   const [filters, setFilters] = React.useState<VisibilityFilters>(DEFAULT_VISIBILITY_FILTERS);
 
   const refresh = React.useCallback(async () => {
@@ -286,7 +310,7 @@ export function Visualizer(): React.ReactElement {
 
   const requestRunDelete = React.useCallback(
     async (fileName: string) => {
-      setPendingDelete(fileName);
+      setPendingRunDelete(fileName);
 
       try {
         await deleteRunFromApi(fileName);
@@ -294,7 +318,24 @@ export function Visualizer(): React.ReactElement {
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : "Could not delete run file.");
       } finally {
-        setPendingDelete("");
+        setPendingRunDelete("");
+      }
+    },
+    [refresh],
+  );
+
+  const requestPrdDelete = React.useCallback(
+    async (fileName: string, workspacePath: string) => {
+      const deleteKey = `${workspacePath}:${fileName}`;
+      setPendingPrdDelete(deleteKey);
+
+      try {
+        await deletePrdFromApi(fileName, workspacePath);
+        await refresh();
+      } catch (nextError) {
+        setError(nextError instanceof Error ? nextError.message : "Could not delete PRD artifacts.");
+      } finally {
+        setPendingPrdDelete("");
       }
     },
     [refresh],
@@ -514,7 +555,7 @@ export function Visualizer(): React.ReactElement {
             <div>
               <h2 style={{ margin: 0, fontSize: "24px", fontFamily: '"IBM Plex Serif", Georgia, serif' }}>Agent runs</h2>
               <div style={{ color: "#52606d", fontSize: "14px", marginTop: "6px" }}>
-                Run files come from `~/.agent-harness/runs`. Showing {visibleRuns.length} of {runs.length} runs; entries older than a week are flagged as stale and can be removed with one click.
+                Run files come from `~/.agent-harness/runs`. Showing {visibleRuns.length} of {runs.length} runs; any non-running entry can be viewed or deleted directly.
               </div>
             </div>
           </div>
@@ -551,15 +592,21 @@ export function Visualizer(): React.ReactElement {
                         {palette.label}
                       </span>
 
-                      {run.isStale ? (
-                        <button
-                          disabled={pendingDelete === run.fileName}
-                          style={closeButtonStyle}
-                          onClick={() => void requestRunDelete(run.fileName)}
-                          type="button"
-                        >
-                          {pendingDelete === run.fileName ? "Removing..." : "Remove stale file"}
-                        </button>
+                      {canManageRun(run) ? (
+                        <>
+                          <button style={quietButtonStyle} onClick={() => viewRun(run)} type="button">
+                            View
+                          </button>
+
+                          <button
+                            disabled={pendingRunDelete === run.fileName}
+                            style={closeButtonStyle}
+                            onClick={() => void requestRunDelete(run.fileName)}
+                            type="button"
+                          >
+                            {pendingRunDelete === run.fileName ? "Deleting..." : "Delete"}
+                          </button>
+                        </>
                       ) : null}
                     </div>
                   </div>
@@ -624,6 +671,7 @@ export function Visualizer(): React.ReactElement {
               <div style={{ color: "#52606d", fontSize: "14px", marginTop: "6px" }}>
                 Showing {visibleCards.length} of {cards.length} PRDs and {visibleSummary.tasksDone}/{visibleSummary.tasksTotal} visible tasks passed.
                 {summary.tasksTotal > visibleSummary.tasksTotal ? ` Global total: ${summary.tasksDone}/${summary.tasksTotal}.` : ""}
+                {" "}Completed PRDs can be removed along with their tracked artifacts.
               </div>
             </div>
             {defaultFiltersActive ? (
@@ -644,9 +692,10 @@ export function Visualizer(): React.ReactElement {
           ) : (
             visibleCards.map((card) => {
               const palette = statusPalette(card.status);
+              const prdDeleteKey = `${card.workspacePath}:${card.fileName}`;
 
               return (
-                <article key={card.fileName} style={{ ...panelStyle, padding: "22px", display: "grid", gap: "14px" }}>
+                <article key={prdDeleteKey} style={{ ...panelStyle, padding: "22px", display: "grid", gap: "14px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", alignItems: "start" }}>
                     <div style={{ display: "grid", gap: "6px" }}>
                       <div style={{ fontSize: "13px", color: "#7c6752" }}>{card.fileName}</div>
@@ -654,18 +703,31 @@ export function Visualizer(): React.ReactElement {
                       <div style={{ color: "#52606d", fontSize: "14px" }}>{card.branchName}</div>
                       <div style={{ color: "#52606d", fontSize: "13px", wordBreak: "break-all" }}>{card.workspacePath}</div>
                     </div>
-                    <span
-                      style={{
-                        background: palette.bg,
-                        color: palette.fg,
-                        padding: "8px 12px",
-                        borderRadius: "999px",
-                        fontWeight: 700,
-                        fontSize: "13px",
-                      }}
-                    >
-                      {palette.label}
-                    </span>
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                      <span
+                        style={{
+                          background: palette.bg,
+                          color: palette.fg,
+                          padding: "8px 12px",
+                          borderRadius: "999px",
+                          fontWeight: 700,
+                          fontSize: "13px",
+                        }}
+                      >
+                        {palette.label}
+                      </span>
+
+                      {card.status === "done" ? (
+                        <button
+                          disabled={pendingPrdDelete === prdDeleteKey}
+                          style={closeButtonStyle}
+                          onClick={() => void requestPrdDelete(card.fileName, card.workspacePath)}
+                          type="button"
+                        >
+                          {pendingPrdDelete === prdDeleteKey ? "Removing..." : "Remove completed PRD"}
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
 
                   <p style={{ margin: 0, color: "#364152", lineHeight: 1.5 }}>{card.description}</p>

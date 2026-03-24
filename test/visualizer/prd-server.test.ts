@@ -43,7 +43,7 @@ describe("loadVisualizerSnapshot", () => {
           tasks: [{ id: "B-1", passes: false, title: "Finish beta" }],
         });
 
-        await writeFile(path.join(repoB.prdsDir, "broken.json"), '{"project": "Broken JSON"', "utf8");
+        await repoB.writeMalformedJson(path.join(".agent-harness", "prds", "broken.json"), '{"project": "Broken JSON"');
         await writeFile(unreadablePath, '{"project": "Unreadable JSON"}\n', "utf8");
         await chmod(unreadablePath, 0);
         await outsideRepo.writeJson(path.join(".agent-harness", "prds", "outside.json"), {

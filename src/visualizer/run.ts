@@ -4,14 +4,16 @@ import process from "node:process";
 import { Command } from "commander";
 import { Hono } from "hono";
 
+import { homeHarnessRoot, homeHarnessSubdir, repoHarnessRoot } from "../harness/paths";
 import { installVisualizerConsoleMirroring } from "./logging";
-import { deleteRunState, loadVisualizerSnapshot } from "./prd-server";
+import { deletePrd, deleteRunState, loadVisualizerSnapshot } from "./prd-server";
 import { buildVisualizer } from "./build";
 import { clearVisualizerServerState, readVisualizerServerState, writeVisualizerServerState } from "./server-state";
 
 const VISUALIZER_ROUTE = "/__ah_vis__";
 const API_PRDS_ROUTE = `${VISUALIZER_ROUTE}/api/prds`;
 const API_RUNS_ROUTE = `${VISUALIZER_ROUTE}/api/runs`;
+const API_RUNS_VIEW_ROUTE = `${API_RUNS_ROUTE}/view`;
 const HEALTH_ROUTE = `${VISUALIZER_ROUTE}/health`;
 const SHUTDOWN_ROUTE = `${VISUALIZER_ROUTE}/shutdown`;
 
@@ -89,6 +91,20 @@ function responseForNotFound(): Response {
   return new Response("Not found", { status: 404 });
 }
 
+function isValidJsonFileName(fileName: string): boolean {
+  return !!fileName && !fileName.includes(path.posix.sep) && !fileName.includes(path.win32.sep) && !fileName.includes("..") && fileName.endsWith(".json");
+}
+
+function isPathWithinRoot(rootPath: string, candidatePath: string): boolean {
+  const relativePath = path.relative(path.resolve(rootPath), path.resolve(candidatePath));
+  return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
+}
+
+function workspacePathFromRun(document: Record<string, unknown>): string {
+  const candidate = document.worktreePath || document.workspacePath || document.repoPath || document.rootPath || "";
+  return typeof candidate === "string" ? candidate.trim() : "";
+}
+
 async function fileResponse(filePath: string): Promise<Response> {
   try {
     const content = await readFile(filePath);
@@ -101,6 +117,39 @@ async function fileResponse(filePath: string): Promise<Response> {
   } catch {
     return responseForNotFound();
   }
+}
+
+async function runViewResponse(fileName: string): Promise<Response> {
+  if (!isValidJsonFileName(fileName)) {
+    return new Response("Invalid run file name.", { status: 400 });
+  }
+
+  const runPath = homeHarnessSubdir("runs", fileName);
+  if (!(await Bun.file(runPath).exists())) {
+    return new Response("Run file not found.", { status: 404 });
+  }
+
+  try {
+    const document = JSON.parse(await readFile(runPath, "utf8")) as Record<string, unknown>;
+    const workspacePath = workspacePathFromRun(document);
+    const logPath = typeof document.logPath === "string" ? document.logPath.trim() : "";
+
+    if (logPath) {
+      const allowedRoots = [homeHarnessRoot()];
+
+      if (workspacePath && path.isAbsolute(workspacePath)) {
+        allowedRoots.push(repoHarnessRoot(workspacePath), path.join(workspacePath, ".generated"));
+      }
+
+      if (allowedRoots.some((rootPath) => isPathWithinRoot(rootPath, logPath)) && (await Bun.file(logPath).exists())) {
+        return fileResponse(path.resolve(logPath));
+      }
+    }
+  } catch {
+    // Fall back to the raw run JSON so the user can still inspect it.
+  }
+
+  return fileResponse(runPath);
 }
 
 export function createVisualizerApp(buildDir: string, shutdown: () => void, scopeRoot: string): Hono {
@@ -123,6 +172,19 @@ export function createVisualizerApp(buildDir: string, shutdown: () => void, scop
     return context.json(snapshot);
   });
 
+  app.delete(API_PRDS_ROUTE, async (context) => {
+    const fileName = context.req.query("file") || "";
+    const workspacePath = context.req.query("workspace") || "";
+    const result = await deletePrd(fileName, workspacePath);
+
+    if (result.deleted) {
+      return context.json(result, 200);
+    }
+
+    const status = result.error === "PRD file not found." ? 404 : 400;
+    return context.json(result, status);
+  });
+
   app.delete(API_RUNS_ROUTE, async (context) => {
     const fileName = context.req.query("file") || "";
     const result = await deleteRunState(fileName);
@@ -133,6 +195,11 @@ export function createVisualizerApp(buildDir: string, shutdown: () => void, scop
 
     const status = result.error === "Run file not found." ? 404 : 400;
     return context.json(result, status);
+  });
+
+  app.get(API_RUNS_VIEW_ROUTE, async (context) => {
+    const fileName = context.req.query("file") || "";
+    return runViewResponse(fileName);
   });
 
   app.get(`${VISUALIZER_ROUTE}/`, async () => fileResponse(path.join(buildDir, "index.html")));

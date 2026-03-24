@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import path from "node:path";
-import { access, writeFile } from "node:fs/promises";
+import { access, mkdir, writeFile } from "node:fs/promises";
 
 import { readVisualizerServerState, writeVisualizerServerState } from "../../src/visualizer/server-state";
 import { createVisualizerApp, runVisualizerCli } from "../../src/visualizer/run";
@@ -21,7 +21,7 @@ afterEach(() => {
   Date.now = originalDateNow;
 });
 
-describe("visualizer run deletion route", () => {
+describe("visualizer deletion routes", () => {
   test("reports a lightweight health response", async () => {
     await withTempHomeFixture(async ({ rootDir }) => {
       const app = createVisualizerApp(rootDir, () => {}, rootDir);
@@ -137,6 +137,150 @@ describe("visualizer run deletion route", () => {
       expect(await response.json()).toEqual({
         deleted: false,
         error: "Run file not found.",
+      });
+    });
+  });
+
+  test("rejects invalid PRD delete requests", async () => {
+    await withTempHomeFixture(async ({ rootDir }) => {
+      const app = createVisualizerApp(rootDir, () => {}, rootDir);
+
+      const invalidRequests = [
+        { file: "", workspace: rootDir, error: "Invalid PRD file name." },
+        { file: "../alpha.json", workspace: rootDir, error: "Invalid PRD file name." },
+        { file: "alpha.txt", workspace: rootDir, error: "Invalid PRD file name." },
+        { file: "alpha.json", workspace: "", error: "Invalid workspace path." },
+        { file: "alpha.json", workspace: "relative/path", error: "Invalid workspace path." },
+      ];
+
+      for (const request of invalidRequests) {
+        const response = await app.request(
+          `${API_PRDS_ROUTE}?file=${encodeURIComponent(request.file)}&workspace=${encodeURIComponent(request.workspace)}`,
+          { method: "DELETE" },
+        );
+
+        expect(response.status).toBe(400);
+        expect(await response.json()).toEqual({
+          deleted: false,
+          error: request.error,
+        });
+      }
+    });
+  });
+
+  test("deletes a completed PRD and its tracked artifacts", async () => {
+    await withTempHomeFixture(async ({ rootDir, logsDir, runsDir }) => {
+      const scopeRoot = path.join(rootDir, "workspace-root");
+      const repo = await createRepoFixture("ah-test-prd-delete-", { parentDir: scopeRoot });
+      const otherRepo = await createRepoFixture("ah-test-prd-delete-other-", { parentDir: scopeRoot });
+
+      try {
+        const generatedDiagramsDir = path.join(repo.rootDir, ".generated", "diagrams");
+        const compoundsDir = path.join(repo.harnessDir, "compounds");
+        await mkdir(generatedDiagramsDir, { recursive: true });
+        await mkdir(compoundsDir, { recursive: true });
+
+        await repo.writeJson(path.join(".agent-harness", "prds", "alpha.json"), {
+          project: "Alpha Project",
+          tasks: [{ id: "A-1", passes: true, title: "Done" }],
+        });
+        await otherRepo.writeJson(path.join(".agent-harness", "prds", "beta.json"), {
+          project: "Beta Project",
+          tasks: [{ id: "B-1", passes: true, title: "Done" }],
+        });
+
+        const diagramPath = path.join(repo.diagramsDir, "alpha.md");
+        const generatedDiagramPath = path.join(generatedDiagramsDir, "alpha.html");
+        const compoundPath = path.join(compoundsDir, "alpha.md");
+        const logPath = path.join(logsDir, "alpha.log");
+        const runPath = path.join(runsDir, "alpha-run.json");
+        const unrelatedRunPath = path.join(runsDir, "beta-run.json");
+        const unrelatedLogPath = path.join(logsDir, "beta.log");
+
+        await writeFile(diagramPath, "# alpha\n", "utf8");
+        await writeFile(generatedDiagramPath, "<html></html>\n", "utf8");
+        await writeFile(compoundPath, "# alpha\n", "utf8");
+        await writeFile(logPath, "alpha log\n", "utf8");
+        await writeFile(unrelatedLogPath, "beta log\n", "utf8");
+
+        await writeFile(
+          runPath,
+          `${JSON.stringify({
+            completedAt: isoAt(-1 * DAY_MS),
+            logPath,
+            prdPath: path.join(repo.prdsDir, "alpha.json"),
+            project: "Alpha Project",
+            status: "completed",
+            worktreePath: repo.rootDir,
+          }, null, 2)}\n`,
+          "utf8",
+        );
+
+        await writeFile(
+          unrelatedRunPath,
+          `${JSON.stringify({
+            completedAt: isoAt(-1 * DAY_MS),
+            logPath: unrelatedLogPath,
+            prdPath: path.join(otherRepo.prdsDir, "beta.json"),
+            project: "Beta Project",
+            status: "completed",
+            worktreePath: otherRepo.rootDir,
+          }, null, 2)}\n`,
+          "utf8",
+        );
+
+        const app = createVisualizerApp(rootDir, () => {}, scopeRoot);
+        const deleteResponse = await app.request(
+          `${API_PRDS_ROUTE}?file=${encodeURIComponent("alpha.json")}&workspace=${encodeURIComponent(repo.rootDir)}`,
+          { method: "DELETE" },
+        );
+
+        expect(deleteResponse.status).toBe(200);
+        expect(await deleteResponse.json()).toEqual({
+          deleted: true,
+          deletedArtifactCount: 5,
+          fileName: "alpha.json",
+          workspacePath: repo.rootDir,
+        });
+
+        await expect(access(path.join(repo.prdsDir, "alpha.json"))).rejects.toThrow();
+        await expect(access(diagramPath)).rejects.toThrow();
+        await expect(access(generatedDiagramPath)).rejects.toThrow();
+        await expect(access(compoundPath)).rejects.toThrow();
+        await expect(access(logPath)).rejects.toThrow();
+        await expect(access(runPath)).rejects.toThrow();
+
+        await expect(access(path.join(otherRepo.prdsDir, "beta.json"))).resolves.toBeNull();
+        await expect(access(unrelatedRunPath)).resolves.toBeNull();
+        await expect(access(unrelatedLogPath)).resolves.toBeNull();
+
+        const snapshotResponse = await app.request(API_PRDS_ROUTE);
+        expect(snapshotResponse.status).toBe(200);
+
+        const snapshot = await snapshotResponse.json();
+        expect(snapshot.cards).toHaveLength(1);
+        expect(snapshot.cards[0]?.fileName).toBe("beta.json");
+        expect(snapshot.runs).toHaveLength(1);
+        expect(snapshot.runs[0]?.fileName).toBe("beta-run.json");
+      } finally {
+        await repo.cleanup();
+        await otherRepo.cleanup();
+      }
+    });
+  });
+
+  test("returns a clear not-found response for missing PRD files", async () => {
+    await withTempHomeFixture(async ({ rootDir }) => {
+      const app = createVisualizerApp(rootDir, () => {}, rootDir);
+      const response = await app.request(
+        `${API_PRDS_ROUTE}?file=${encodeURIComponent("missing.json")}&workspace=${encodeURIComponent(rootDir)}`,
+        { method: "DELETE" },
+      );
+
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({
+        deleted: false,
+        error: "PRD file not found.",
       });
     });
   });

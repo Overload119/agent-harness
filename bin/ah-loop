@@ -2297,9 +2297,10 @@ async function acquireWorktreeLock(details) {
 
 // src/loop/run.ts
 var DEFAULT_HEARTBEAT_MS = 5000;
+var DEFAULT_MAX_ITERATIONS = 10;
 function createProgram() {
   const program2 = new Command;
-  program2.name("ah-loop").description("Run a PRD loop and persist status for the visualizer.").argument("<prd-path>", "Path to the PRD JSON file").option("--heartbeat-ms <number>", "Heartbeat interval in milliseconds", String(DEFAULT_HEARTBEAT_MS)).option("--run-id <value>", "Reuse or set a specific run id").option("--worktree-path <path>", "Override the workspace/worktree path recorded in run state").helpOption("-h, --help");
+  program2.name("ah-loop").description("Run a PRD loop and persist status for the visualizer.").argument("<prd-path>", "Path to the PRD JSON file").option("--heartbeat-ms <number>", "Heartbeat interval in milliseconds", String(DEFAULT_HEARTBEAT_MS)).option("--max-iterations <number>", "Stop after this many executor iterations even if tasks remain", String(DEFAULT_MAX_ITERATIONS)).option("--run-id <value>", "Reuse or set a specific run id").option("--worktree-path <path>", "Override the workspace/worktree path recorded in run state").helpOption("-h, --help");
   return program2;
 }
 function parsePositiveInteger(value, fallback, label) {
@@ -2399,6 +2400,7 @@ async function runLoopCli(argv) {
   const options = program2.opts();
   const [prdArg] = program2.processedArgs;
   const heartbeatMs = parsePositiveInteger(options.heartbeatMs, DEFAULT_HEARTBEAT_MS, "heartbeat-ms");
+  const maxIterations = parsePositiveInteger(options.maxIterations, DEFAULT_MAX_ITERATIONS, "max-iterations");
   const prdPath = path3.resolve(prdArg);
   const worktreePath = path3.resolve(options.worktreePath || process2.cwd());
   const document = await readPrd(prdPath);
@@ -2407,7 +2409,12 @@ async function runLoopCli(argv) {
   await ensureSharedStateDirs();
   const actualRunPath = path3.join(runsDir(), runFileName(project, runId));
   const logPath = path3.join(logsDir(), `${runId}.log`);
-  const command = ["bin/ah-loop", prdPath, `--run-id ${runId}`].join(" ");
+  const command = [
+    "bin/ah-loop",
+    prdPath,
+    `--run-id ${runId}`,
+    `--max-iterations ${maxIterations}`
+  ].join(" ");
   const startedAt = nowIso();
   const state = {
     branchName: document.branchName || "No branch name",
@@ -2489,6 +2496,10 @@ async function runLoopCli(argv) {
       const task = nextIncompleteTask(current);
       if (!task) {
         await stop("completed", 0, "All PRD tasks completed.");
+        return;
+      }
+      if (state.iteration >= maxIterations) {
+        await stop("stopped", 0, `Reached max iterations (${maxIterations}) before all PRD tasks were completed.`);
         return;
       }
       state.iteration += 1;

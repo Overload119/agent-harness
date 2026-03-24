@@ -18,9 +18,11 @@ import {
 } from "./state";
 
 const DEFAULT_HEARTBEAT_MS = 5000;
+const DEFAULT_MAX_ITERATIONS = 10;
 
 type LoopOptions = {
   heartbeatMs?: string;
+  maxIterations?: string;
   runId?: string;
   worktreePath?: string;
 };
@@ -51,6 +53,11 @@ function createProgram(): Command {
     .description("Run a PRD loop and persist status for the visualizer.")
     .argument("<prd-path>", "Path to the PRD JSON file")
     .option("--heartbeat-ms <number>", "Heartbeat interval in milliseconds", String(DEFAULT_HEARTBEAT_MS))
+    .option(
+      "--max-iterations <number>",
+      "Stop after this many executor iterations even if tasks remain",
+      String(DEFAULT_MAX_ITERATIONS),
+    )
     .option("--run-id <value>", "Reuse or set a specific run id")
     .option("--worktree-path <path>", "Override the workspace/worktree path recorded in run state")
     .helpOption("-h, --help");
@@ -173,6 +180,7 @@ export async function runLoopCli(argv: string[]): Promise<void> {
   const options = program.opts<LoopOptions>();
   const [prdArg] = program.processedArgs as [string];
   const heartbeatMs = parsePositiveInteger(options.heartbeatMs, DEFAULT_HEARTBEAT_MS, "heartbeat-ms");
+  const maxIterations = parsePositiveInteger(options.maxIterations, DEFAULT_MAX_ITERATIONS, "max-iterations");
   const prdPath = path.resolve(prdArg);
   const worktreePath = path.resolve(options.worktreePath || process.cwd());
   const document = await readPrd(prdPath);
@@ -181,7 +189,12 @@ export async function runLoopCli(argv: string[]): Promise<void> {
   await ensureSharedStateDirs();
   const actualRunPath = path.join(runsDir(), runFileName(project, runId));
   const logPath = path.join(logsDir(), `${runId}.log`);
-  const command = ["bin/ah-loop", prdPath, `--run-id ${runId}`].join(" ");
+  const command = [
+    "bin/ah-loop",
+    prdPath,
+    `--run-id ${runId}`,
+    `--max-iterations ${maxIterations}`,
+  ].join(" ");
   const startedAt = nowIso();
 
   const state: RunDocument = {
@@ -276,6 +289,15 @@ export async function runLoopCli(argv: string[]): Promise<void> {
 
       if (!task) {
         await stop("completed", 0, "All PRD tasks completed.");
+        return;
+      }
+
+      if (state.iteration >= maxIterations) {
+        await stop(
+          "stopped",
+          0,
+          `Reached max iterations (${maxIterations}) before all PRD tasks were completed.`,
+        );
         return;
       }
 

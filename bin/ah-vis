@@ -2131,7 +2131,7 @@ var require_commander = __commonJS((exports) => {
 import process2 from "process";
 
 // src/visualizer/run.ts
-import { readFile as readFile2 } from "fs/promises";
+import { readFile as readFile3 } from "fs/promises";
 import path5 from "path";
 import process from "process";
 
@@ -3689,11 +3689,6 @@ var Hono2 = class extends Hono {
   }
 };
 
-// src/visualizer/logging.ts
-import { appendFile, mkdir } from "fs/promises";
-import path2 from "path";
-import { format } from "util";
-
 // src/harness/paths.ts
 import os from "os";
 import path from "path";
@@ -3712,6 +3707,9 @@ function homeHarnessSubdir(...segments) {
 }
 
 // src/visualizer/logging.ts
+import { appendFile, mkdir } from "fs/promises";
+import path2 from "path";
+import { format } from "util";
 var VISUALIZER_LOG_FILE = "ah-vis.log";
 function timestamp() {
   return new Date().toISOString();
@@ -3924,8 +3922,62 @@ async function loadVisualizerSnapshot(options) {
     workspaceCount: workspaces.length
   };
 }
+var ASSOCIATED_PRD_ARTIFACT_DIRS = ["compounds", "diagrams", "plans", "reviews", "verifications"];
+function isValidJsonFileName(fileName) {
+  return !!fileName && !fileName.includes(path3.posix.sep) && !fileName.includes(path3.win32.sep) && !fileName.includes("..") && fileName.endsWith(".json");
+}
+function isPathWithinRoot(rootPath, candidatePath) {
+  const relativePath = path3.relative(path3.resolve(rootPath), path3.resolve(candidatePath));
+  return relativePath === "" || !relativePath.startsWith("..") && !path3.isAbsolute(relativePath);
+}
+async function existingFilePathsInDir(dirPath, stem) {
+  try {
+    const entries = await readdir(dirPath, { withFileTypes: true });
+    return entries.filter((entry) => entry.isFile() && path3.parse(entry.name).name === stem).map((entry) => path3.join(dirPath, entry.name));
+  } catch {
+    return [];
+  }
+}
+async function collectAssociatedWorkspaceArtifacts(workspacePath, stem) {
+  const workspaceArtifactDirs = [
+    ...ASSOCIATED_PRD_ARTIFACT_DIRS.map((dirName) => repoHarnessSubdir(workspacePath, dirName)),
+    path3.join(workspacePath, ".generated", "diagrams")
+  ];
+  const artifactGroups = await Promise.all(workspaceArtifactDirs.map((dirPath) => existingFilePathsInDir(dirPath, stem)));
+  return artifactGroups.flat();
+}
+async function collectRunArtifactsForPrd(prdPath, workspacePath) {
+  const runsDir = homeHarnessSubdir("runs");
+  const allowedRoots = [homeHarnessRoot(), repoHarnessRoot(workspacePath), path3.join(workspacePath, ".generated")];
+  try {
+    const entries = await readdir(runsDir, { withFileTypes: true });
+    const artifactPaths = [];
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.endsWith(".json")) {
+        continue;
+      }
+      const runPath = path3.join(runsDir, entry.name);
+      try {
+        const document = JSON.parse(await readFile(runPath, "utf8"));
+        if (path3.resolve(document.prdPath || "") !== prdPath) {
+          continue;
+        }
+        artifactPaths.push(runPath);
+        const logPath = document.logPath?.trim();
+        if (logPath && allowedRoots.some((rootPath) => isPathWithinRoot(rootPath, logPath)) && await Bun.file(logPath).exists()) {
+          artifactPaths.push(path3.resolve(logPath));
+        }
+      } catch {
+        continue;
+      }
+    }
+    return artifactPaths;
+  } catch {
+    return [];
+  }
+}
 async function deleteRunState(fileName) {
-  if (!fileName || fileName.includes(path3.posix.sep) || fileName.includes(path3.win32.sep) || fileName.includes("..") || !fileName.endsWith(".json")) {
+  if (!isValidJsonFileName(fileName)) {
     return { deleted: false, error: "Invalid run file name." };
   }
   const filePath = path3.join(homeHarnessSubdir("runs"), fileName);
@@ -3937,6 +3989,39 @@ async function deleteRunState(fileName) {
     return { deleted: true, fileName };
   } catch {
     return { deleted: false, error: "Could not delete run file." };
+  }
+}
+async function deletePrd(fileName, workspacePath) {
+  if (!isValidJsonFileName(fileName)) {
+    return { deleted: false, error: "Invalid PRD file name." };
+  }
+  if (!workspacePath || !path3.isAbsolute(workspacePath)) {
+    return { deleted: false, error: "Invalid workspace path." };
+  }
+  const prdPath = path3.resolve(repoHarnessSubdir(workspacePath, "prds", fileName));
+  const expectedPrdDir = path3.resolve(repoHarnessSubdir(workspacePath, "prds"));
+  if (!isPathWithinRoot(expectedPrdDir, prdPath)) {
+    return { deleted: false, error: "Invalid PRD file path." };
+  }
+  if (!await Bun.file(prdPath).exists()) {
+    return { deleted: false, error: "PRD file not found." };
+  }
+  const stem = path3.parse(fileName).name;
+  const associatedWorkspaceArtifacts = await collectAssociatedWorkspaceArtifacts(workspacePath, stem);
+  const runArtifacts = await collectRunArtifactsForPrd(prdPath, workspacePath);
+  const artifactPaths = Array.from(new Set([prdPath, ...associatedWorkspaceArtifacts, ...runArtifacts]));
+  try {
+    for (const artifactPath of artifactPaths) {
+      await rm(artifactPath, { force: true });
+    }
+    return {
+      deleted: true,
+      deletedArtifactCount: artifactPaths.length - 1,
+      fileName,
+      workspacePath
+    };
+  } catch {
+    return { deleted: false, error: "Could not delete PRD artifacts." };
   }
 }
 
@@ -3964,11 +4049,73 @@ async function buildVisualizer(rootDir, outDir) {
   await copyFile(path4.join(rootDir, "src", "visualizer", "index.html"), path4.join(outDir, "index.html"));
 }
 
+// src/visualizer/server-state.ts
+import { mkdir as mkdir3, readFile as readFile2, rm as rm3 } from "fs/promises";
+var VISUALIZER_SERVER_STATE_FILE = "visualizer-server.json";
+function visualizerServerStatePath() {
+  return homeHarnessSubdir(VISUALIZER_SERVER_STATE_FILE);
+}
+function isValidServerState(value) {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const candidate = value;
+  return Number.isInteger(candidate.pid) && Number.isInteger(candidate.port) && typeof candidate.recordedAt === "string" && candidate.recordedAt.length > 0 && typeof candidate.url === "string" && candidate.url.length > 0;
+}
+async function readVisualizerServerState() {
+  try {
+    const raw2 = JSON.parse(await readFile2(visualizerServerStatePath(), "utf8"));
+    return isValidServerState(raw2) ? raw2 : null;
+  } catch {
+    return null;
+  }
+}
+async function writeVisualizerServerState(state) {
+  await mkdir3(homeHarnessRoot(), { recursive: true });
+  await Bun.write(visualizerServerStatePath(), `${JSON.stringify(state, null, 2)}
+`);
+}
+async function clearVisualizerServerState(match2) {
+  const filePath = visualizerServerStatePath();
+  if (match2) {
+    const current = await readVisualizerServerState();
+    if (!current) {
+      return;
+    }
+    if (match2.pid !== undefined && current.pid !== match2.pid) {
+      return;
+    }
+    if (match2.port !== undefined && current.port !== match2.port) {
+      return;
+    }
+    if (match2.url !== undefined && current.url !== match2.url) {
+      return;
+    }
+  }
+  await rm3(filePath, { force: true });
+}
+
 // src/visualizer/run.ts
 var VISUALIZER_ROUTE = "/__ah_vis__";
 var API_PRDS_ROUTE = `${VISUALIZER_ROUTE}/api/prds`;
 var API_RUNS_ROUTE = `${VISUALIZER_ROUTE}/api/runs`;
+var API_RUNS_VIEW_ROUTE = `${API_RUNS_ROUTE}/view`;
+var HEALTH_ROUTE = `${VISUALIZER_ROUTE}/health`;
 var SHUTDOWN_ROUTE = `${VISUALIZER_ROUTE}/shutdown`;
+var defaultCliDeps = {
+  buildVisualizer,
+  fetch: (input, init) => fetch(input, init),
+  installVisualizerConsoleMirroring,
+  openUrl: async (url) => {
+    const openResult = Bun.spawn({
+      cmd: ["open", url],
+      stderr: "inherit",
+      stdout: "ignore"
+    });
+    await openResult.exited;
+  },
+  serve: (options) => Bun.serve(options)
+};
 function createProgram() {
   const program2 = new Command;
   program2.name("ah-vis").description("Build, serve, and open the agent harness visualizer GUI.").option("-p, --port <number>", "Port to serve on. Defaults to a random open port.").helpOption("-h, --help");
@@ -3997,9 +4144,20 @@ function contentTypeFor(filePath) {
 function responseForNotFound() {
   return new Response("Not found", { status: 404 });
 }
+function isValidJsonFileName2(fileName) {
+  return !!fileName && !fileName.includes(path5.posix.sep) && !fileName.includes(path5.win32.sep) && !fileName.includes("..") && fileName.endsWith(".json");
+}
+function isPathWithinRoot2(rootPath, candidatePath) {
+  const relativePath = path5.relative(path5.resolve(rootPath), path5.resolve(candidatePath));
+  return relativePath === "" || !relativePath.startsWith("..") && !path5.isAbsolute(relativePath);
+}
+function workspacePathFromRun2(document) {
+  const candidate = document.worktreePath || document.workspacePath || document.repoPath || document.rootPath || "";
+  return typeof candidate === "string" ? candidate.trim() : "";
+}
 async function fileResponse(filePath) {
   try {
-    const content = await readFile2(filePath);
+    const content = await readFile3(filePath);
     return new Response(content, {
       headers: {
         "cache-control": "no-store",
@@ -4010,8 +4168,36 @@ async function fileResponse(filePath) {
     return responseForNotFound();
   }
 }
+async function runViewResponse(fileName) {
+  if (!isValidJsonFileName2(fileName)) {
+    return new Response("Invalid run file name.", { status: 400 });
+  }
+  const runPath = homeHarnessSubdir("runs", fileName);
+  if (!await Bun.file(runPath).exists()) {
+    return new Response("Run file not found.", { status: 404 });
+  }
+  try {
+    const document = JSON.parse(await readFile3(runPath, "utf8"));
+    const workspacePath = workspacePathFromRun2(document);
+    const logPath = typeof document.logPath === "string" ? document.logPath.trim() : "";
+    if (logPath) {
+      const allowedRoots = [homeHarnessRoot()];
+      if (workspacePath && path5.isAbsolute(workspacePath)) {
+        allowedRoots.push(repoHarnessRoot(workspacePath), path5.join(workspacePath, ".generated"));
+      }
+      if (allowedRoots.some((rootPath) => isPathWithinRoot2(rootPath, logPath)) && await Bun.file(logPath).exists()) {
+        return fileResponse(path5.resolve(logPath));
+      }
+    }
+  } catch {}
+  return fileResponse(runPath);
+}
 function createVisualizerApp(buildDir, shutdown, scopeRoot) {
   const app = new Hono2;
+  app.get(HEALTH_ROUTE, (context) => {
+    context.header("cache-control", "no-store");
+    return context.json({ ok: true });
+  });
   app.post(SHUTDOWN_ROUTE, (context) => {
     console.log("Visualizer shutdown requested from browser.");
     setTimeout(shutdown, 50);
@@ -4022,6 +4208,16 @@ function createVisualizerApp(buildDir, shutdown, scopeRoot) {
     context.header("cache-control", "no-store");
     return context.json(snapshot);
   });
+  app.delete(API_PRDS_ROUTE, async (context) => {
+    const fileName = context.req.query("file") || "";
+    const workspacePath = context.req.query("workspace") || "";
+    const result = await deletePrd(fileName, workspacePath);
+    if (result.deleted) {
+      return context.json(result, 200);
+    }
+    const status = result.error === "PRD file not found." ? 404 : 400;
+    return context.json(result, status);
+  });
   app.delete(API_RUNS_ROUTE, async (context) => {
     const fileName = context.req.query("file") || "";
     const result = await deleteRunState(fileName);
@@ -4030,6 +4226,10 @@ function createVisualizerApp(buildDir, shutdown, scopeRoot) {
     }
     const status = result.error === "Run file not found." ? 404 : 400;
     return context.json(result, status);
+  });
+  app.get(API_RUNS_VIEW_ROUTE, async (context) => {
+    const fileName = context.req.query("file") || "";
+    return runViewResponse(fileName);
   });
   app.get(`${VISUALIZER_ROUTE}/`, async () => fileResponse(path5.join(buildDir, "index.html")));
   app.get(VISUALIZER_ROUTE, async () => fileResponse(path5.join(buildDir, "index.html")));
@@ -4041,19 +4241,57 @@ function createVisualizerApp(buildDir, shutdown, scopeRoot) {
   app.notFound(() => responseForNotFound());
   return app;
 }
-async function runVisualizerCli(argv) {
-  const logPath = await installVisualizerConsoleMirroring();
+function parseRequestedPort(value) {
+  const requestedPort = value ? Number(value) : 0;
+  if (Number.isNaN(requestedPort) || requestedPort < 0) {
+    throw new Error(`Invalid port: ${value}`);
+  }
+  return requestedPort;
+}
+function visualizerHealthUrl(baseUrl) {
+  return new URL(HEALTH_ROUTE, baseUrl).toString();
+}
+async function reuseExistingVisualizerIfHealthy(requestedPort, deps) {
+  const state = await readVisualizerServerState();
+  if (!state) {
+    return null;
+  }
+  if (requestedPort > 0 && state.port !== requestedPort) {
+    return null;
+  }
+  try {
+    const response = await deps.fetch(visualizerHealthUrl(state.url), {
+      headers: { "cache-control": "no-store" }
+    });
+    if (!response.ok) {
+      throw new Error(`Unexpected health status ${response.status}`);
+    }
+    const payload = await response.json();
+    if (payload.ok !== true) {
+      throw new Error("Invalid health payload");
+    }
+    return state.url;
+  } catch {
+    await clearVisualizerServerState({ port: state.port, url: state.url });
+    return null;
+  }
+}
+async function runVisualizerCli(argv, deps = defaultCliDeps) {
   const program2 = createProgram();
   program2.parse(argv);
   const options = program2.opts();
+  const requestedPort = parseRequestedPort(options.port);
   const harnessRoot = harnessRootFromArgv(argv);
   const buildDir = path5.join(harnessRoot, ".generated", "visualizer");
   const scopeRoot = path5.resolve(process.cwd());
-  await buildVisualizer(harnessRoot, buildDir);
-  const requestedPort = options.port ? Number(options.port) : 0;
-  if (Number.isNaN(requestedPort) || requestedPort < 0) {
-    throw new Error(`Invalid port: ${options.port}`);
+  const existingUrl = await reuseExistingVisualizerIfHealthy(requestedPort, deps);
+  if (existingUrl) {
+    await deps.openUrl(existingUrl);
+    console.log(`Visualizer already running at ${existingUrl}`);
+    return;
   }
+  const logPath = await deps.installVisualizerConsoleMirroring();
+  await deps.buildVisualizer(harnessRoot, buildDir);
   let serverStopped = false;
   let resolveShutdown;
   const shutdownComplete = new Promise((resolve) => {
@@ -4068,18 +4306,19 @@ async function runVisualizerCli(argv) {
     resolveShutdown();
   };
   const app = createVisualizerApp(buildDir, shutdown, scopeRoot);
-  const server = Bun.serve({
+  const server = deps.serve({
     port: requestedPort,
     development: false,
     fetch: app.fetch
   });
   const visualizerUrl = `http://127.0.0.1:${server.port}${VISUALIZER_ROUTE}/`;
-  const openResult = Bun.spawn({
-    cmd: ["open", visualizerUrl],
-    stderr: "inherit",
-    stdout: "ignore"
+  await writeVisualizerServerState({
+    pid: process.pid,
+    port: server.port,
+    recordedAt: new Date().toISOString(),
+    url: visualizerUrl
   });
-  await openResult.exited;
+  await deps.openUrl(visualizerUrl);
   console.log(`Visualizer running at ${visualizerUrl}`);
   console.log(`Writing logs to ${logPath}`);
   console.log("Press Ctrl+C to stop the server.");
@@ -4088,6 +4327,7 @@ async function runVisualizerCli(argv) {
   process.once("SIGTERM", shutdown);
   await shutdownComplete;
   clearInterval(keepAlive);
+  await clearVisualizerServerState({ pid: process.pid, port: server.port, url: visualizerUrl });
   console.log("Visualizer stopped.");
 }
 
