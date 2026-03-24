@@ -28,6 +28,25 @@ describe("visualizer run cards", () => {
     });
   });
 
+  test("uses startedAt when it is the only valid explicit timestamp", () => {
+    const startedAt = isoAt(-3 * DAY_MS);
+    const card = runCardFromDocument(
+      "run.json",
+      NOW - 20 * DAY_MS,
+      {
+        completedAt: "not-a-date",
+        lastHeartbeatAt: "still-not-a-date",
+        startedAt,
+      },
+      "/tmp/worktree",
+      STALE_CUTOFF,
+    );
+
+    expect(card.startedAt).toBe(Date.parse(startedAt));
+    expect(card.lastTouchedAt).toBe(Date.parse(startedAt));
+    expect(card.isStale).toBe(false);
+  });
+
   test("prefers the newest explicit timestamp over file mtime", () => {
     const staleFileMtime = NOW - 30 * DAY_MS;
     const heartbeatAt = isoAt(-2 * DAY_MS);
