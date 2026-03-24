@@ -20,9 +20,12 @@ Rules:
 
 1. Stay inside the current repo checkout.
    - Do not read or write files outside the repo except through the provided CLI commands.
-   - Never edit `~/.agent-harness` directly.
+   - Never inspect, read, glob, or write `~/.agent-harness` directly.
+   - In particular, do not read the run state file path and do not enumerate `~/.agent-harness/runs/`.
+   - Treat the run state file path as an opaque handle that may only be passed back to `bin/ah-run-state update --run-file ...`.
 2. Use CLI commands for shared run persistence.
    - Use `bin/ah-run-state update --run-file ...` to report phase or progress messages when helpful.
+   - Never use Read, Glob, Grep, or direct filesystem access on the run state file or the runs directory.
 3. Work on one task only.
    - Read the PRD.
    - Find the assigned task.
