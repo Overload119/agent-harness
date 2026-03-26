@@ -40,6 +40,12 @@ export async function runSetupCli(argv: string[]): Promise<void> {
 export async function runSetup(options: SetupOptions, argv: string[]): Promise<void> {
   const paths = resolveSetupPaths(argv);
 
+  const rgCheck = Bun.spawnSync({ cmd: ["which", "rg"], stdout: "pipe", stderr: "ignore" });
+  if (rgCheck.exitCode !== 0) {
+    console.error("ripgrep (`rg`) is required but not found. Please install it and try again.");
+    process.exit(1);
+  }
+
   if (!(await pathExists(paths.sourceDir))) {
     console.error(`Source skills directory not found: ${paths.sourceDir}`);
     process.exit(1);
