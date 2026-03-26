@@ -9,6 +9,7 @@
 ## Repo Conventions
 
 - This repo uses Bun for scripts; prefer Bun/Typescript and do not create Python helper scripts.
+- Use `rg` (ripgrep) for content searches instead of `grep`. The `timeout` command is not available everywhere and should not be used.
 
 ## Build And Visualizer Rules
 
