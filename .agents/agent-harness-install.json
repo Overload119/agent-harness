@@ -16,7 +16,7 @@
       "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/just-way/skills/ah-compound",
       "targetPath": ".agents/skills/compound",
       "installedFiles": {
-        "SKILL.md": "d057f010e00389494ad9edafc8812726572c502d0b6255b1eb7276abf6753cdf"
+        "SKILL.md": "649a0aa52e6e8d9e771dadbec9949a5c5b2c3e434f9a10d362974784445618d1"
       }
     },
     "oneshot": {
@@ -97,13 +97,14 @@
       "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/just-way/skills/ah-memory",
       "targetPath": ".agents/skills/memory",
       "installedFiles": {
-        "SKILL.md": "42d6ceba386ca88dd960ecfe5dfcd98227c1764e96384f75de9d3563f5e6ebac"
+        "_memory-categories.md": "482366badddecb9c7da5559919d767fa7f81ddc2a82665f1316d72b608895e9c",
+        "SKILL.md": "2f940ccf1819c7df2e2d583d1d8b1875ff222365aa7cf96d3cb5953b2816e80b"
       }
     }
   },
   "source": {
     "repoRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/just-way",
-    "commit": "e35a8bf02e2570b5b78b7fa23c0013de8f77878d"
+    "commit": "94db31df861e3328e9ea8144ee368c1a8d9aeeae"
   },
   "targetRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/just-way"
 }

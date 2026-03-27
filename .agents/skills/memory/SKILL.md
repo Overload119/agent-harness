@@ -17,6 +17,8 @@ Use this skill when:
 
 ## Memory Categories
 
+## Memory Categories
+
 **NEVER ask the user which category to use.** Read the category descriptions below and determine the correct category autonomously based on the topic.
 
 ### ARCHITECTURE.md - System Infrastructure
@@ -72,6 +74,22 @@ Store lessons about **the user's coding style, taste, and preferences**:
 - Architectural preferences (e.g., "follows clean architecture", "prefers one type per file")
 - Trade-off priorities (e.g., "readability over brevity", "explicit over clever")
 - Preferences stated directly by the user vs. inferred from behavior
+
+### USER_PREFERENCES.md - Purpose
+
+This file captures the agent's evolving understanding of the user's taste, coding style, and preferences — not configuration or settings, but accumulated knowledge about how the user thinks and what they value.
+
+**What belongs here:**
+- Coding style preferences (e.g., "prefers controller-based APIs", "dislikes over-commenting")
+- Architectural preferences (e.g., "follows clean architecture", "prefers one type per file")
+- Trade-off priorities (e.g., "readability over brevity", "explicit over clever")
+- Project conventions absorbed from past decisions and context
+- Preferences stated directly by the user vs. inferred from behavior
+
+**How it works:**
+Entries here represent beliefs about the user with provenance — the agent knows whether a preference was stated explicitly or inferred. Stated preferences carry higher trust weight and don't decay over time.
+
+This is the difference between a tool that follows instructions and an assistant that knows you.
 
 ## Memory File Locations
 

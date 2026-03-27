@@ -21,6 +21,7 @@
     "commander": "^14.0.3",
     "hono": "^4.7.10",
     "liquid": "^5.1.1",
+    "liquidjs": "^10.25.2",
     "tailwind-merge": "^2.6.0",
     "tailwindcss": "^4.0.0"
   }
