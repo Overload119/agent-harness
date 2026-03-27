@@ -269,6 +269,7 @@ export async function runLoopCli(argv: string[]): Promise<void> {
   });
 
   await writeRunState(actualRunPath, state);
+  await log(`Run ID: ${runId} -- Command: bin/ah-loop ${prdPath} --run-id ${runId}`);
   await log(`Starting ah-loop for ${project}`);
   await log(`Tracking PRD at ${prdPath}`);
   await log(`Writing run state to ${actualRunPath}`);

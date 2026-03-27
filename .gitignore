@@ -7,3 +7,5 @@ tasks/**
 node_modules/
 .agent-harness/*
 !.agent-harness/memory/**
+.agent-harness/
+!/.agent-harness/memory/

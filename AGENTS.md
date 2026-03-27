@@ -45,6 +45,40 @@ The agent harness uses plain Markdown files for memory storage under `.agent-har
 - Use `ah-compound` to add new entries to the appropriate category
 ```
 
+agent-harness-memory
+## Agent Harness Memory
+
+The agent harness uses plain Markdown files for memory storage under `.agent-harness/memory/`.
+
+### Memory Categories
+
+| Category | Description |
+|----------|-------------|
+| BACKEND | Backend architecture, APIs, and server-side patterns |
+| FRONTEND | UI components, frontend architecture, and rendering |
+| ARCHITECTURE | System design, infrastructure, and cross-cutting concerns |
+| PRODUCT | Product requirements, specs, and feature documentation |
+| BUSINESS | Business logic, rules, and domain knowledge |
+| USER_PREFERENCES | User settings, configuration, and personalization |
+
+### File Structure
+
+- `.agent-harness/memory/` - Contains 6 category Markdown files
+- Each file stores entries as Markdown sections separated by `---`
+- 500-line soft cap per file; exceeding triggers consolidation
+
+### Commands
+
+- `ah-memory search <query>` - Search memory entries across categories
+- `ah-memory consolidate` - Validate and compact memory files
+- `ah-memory consolidate --dry` - Preview consolidation without writing
+
+### Notes
+
+- Memory entries are auto-consolidated every 10 tool executions
+- Use `ah-compound` to add new entries to the appropriate category
+```
+
 ## Build And Visualizer Rules
 
 - Any change affecting shipped CLIs, setup, or visualizer-delivered assets should end with the appropriate rebuild steps. Use `bun scripts/build.ts` for shipped CLI/setup changes, and rebuild visualizer assets for relevant changes under `src/visualizer/` or related inputs.
