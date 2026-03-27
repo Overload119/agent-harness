@@ -1,88 +1,102 @@
 import * as React from "react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
-import { type PrdCard, type RunCard } from "./cards";
-import { DEFAULT_VISIBILITY_FILTERS, countWorkspaces, filterEntries, filterStatusMessage, summarizeCards, summarizeHiddenItems, type CardSummary, type VisibilityFilters } from "./dashboard";
+import { formatIterationProgress, type PrdCard, type RunCard } from "./cards";
+import { DEFAULT_VISIBILITY_FILTERS, countWorkspaces, filterEntries, groupRunsByWorkspace, summarizeCards, type CardSummary } from "./dashboard";
+import { fileProxyUrl, matchPrdCard } from "./detail";
+import { countRunsByStatus, formatRelativeTime, formatRunDuration, runStatusDisplay } from "./run-presentation";
 
 const CLOCK_MS = 1000;
 const POLL_MS = 2000;
 const API_PRDS_ROUTE = "/__ah_vis__/api/prds";
 const API_RUNS_ROUTE = "/__ah_vis__/api/runs";
 const API_RUNS_VIEW_ROUTE = "/__ah_vis__/api/runs/view";
-const SHUTDOWN_ROUTE = "/__ah_vis__/shutdown";
 
-const pageStyle: React.CSSProperties = {
-  minHeight: "100vh",
-  padding: "32px",
-  background: "linear-gradient(135deg, #f7f3ea 0%, #efe7d8 50%, #e4ddd2 100%)",
-  color: "#1f2933",
-  fontFamily: '"IBM Plex Sans", "Avenir Next", sans-serif',
-};
+function Surface({ as: Component = "div", children, className, ...props }: React.ComponentProps<"div"> & { as?: React.ElementType }): React.ReactElement {
+  return (
+    <Component
+      className={cn(
+        "bg-[rgba(255,252,246,0.82)] border border-[rgba(31,41,51,0.12)] rounded-3xl shadow-[0_20px_60px_rgba(62,51,39,0.12)] backdrop-blur-2xl",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </Component>
+  );
+}
 
-const shellStyle: React.CSSProperties = {
-  maxWidth: "1100px",
-  margin: "0 auto",
-  display: "grid",
-  gap: "24px",
-};
+function Stack({ children, gap = "12px", className, style, ...props }: React.ComponentProps<"div"> & { gap?: string }) {
+  return (
+    <div
+      className={cn("grid", className)}
+      style={{ gap, ...style }}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
 
-const panelStyle: React.CSSProperties = {
-  background: "rgba(255, 252, 246, 0.82)",
-  border: "1px solid rgba(31, 41, 51, 0.12)",
-  borderRadius: "24px",
-  boxShadow: "0 20px 60px rgba(62, 51, 39, 0.12)",
-  backdropFilter: "blur(16px)",
-};
+function Cluster({ children, gap = "12px", className, style, ...props }: React.ComponentProps<"div"> & { gap?: string }) {
+  return (
+    <div
+      className={cn("flex flex-wrap items-center gap-3", className)}
+      style={{ gap, ...style }}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
 
-const heroStyle: React.CSSProperties = {
-  ...panelStyle,
-  padding: "28px",
-  display: "grid",
-  gap: "16px",
-};
+function Eyebrow({ children, className, ...props }: React.ComponentProps<"div">): React.ReactElement {
+  return (
+    <div
+      className={cn("text-[12px] uppercase tracking-[0.08em] text-[#7c6752]", className)}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
 
-const cardsStyle: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-  gap: "18px",
-};
+function StatBlock({ label, value, detail, className, style }: { label: string; value: React.ReactNode; detail?: React.ReactNode; className?: string; style?: React.CSSProperties }) {
+  return (
+    <div
+      className={cn("p-3.5 rounded-2xl bg-[rgba(31,41,51,0.04)]", className)}
+      style={style}
+    >
+      <Eyebrow>{label}</Eyebrow>
+      <strong>{value}</strong>
+      {detail ? <div className="text-[#52606d] text-xs mt-1">{detail}</div> : null}
+    </div>
+  );
+}
 
-const buttonStyle: React.CSSProperties = {
-  border: 0,
-  borderRadius: "999px",
-  padding: "12px 18px",
-  background: "#1f2933",
-  color: "#fffaf1",
-  cursor: "pointer",
-  fontWeight: 600,
-};
+function StatusBadge({ label, background, color }: { label: string; background: string; color: string }): React.ReactElement {
+  return (
+    <Badge
+      style={{ background, color }}
+      className="px-3 py-1 rounded-full font-bold text-[13px] font-semibold"
+    >
+      {label}
+    </Badge>
+  );
+}
 
-const quietButtonStyle: React.CSSProperties = {
-  ...buttonStyle,
-  background: "rgba(31, 41, 51, 0.08)",
-  color: "#1f2933",
-};
+function Notice({ children, className, style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }): React.ReactElement {
+  return (
+    <div className={cn("px-3.5 py-3 rounded-2xl", className)} style={style}>
+      {children}
+    </div>
+  );
+}
 
-const closeButtonStyle: React.CSSProperties = {
-  ...buttonStyle,
-  background: "#8a1c2b",
-};
-
-const filterChipStyle: React.CSSProperties = {
-  borderRadius: "999px",
-  border: "1px solid rgba(31, 41, 51, 0.14)",
-  padding: "10px 14px",
-  background: "rgba(255, 252, 246, 0.9)",
-  color: "#1f2933",
-  cursor: "pointer",
-  fontWeight: 600,
-};
-
-const clockCardStyle: React.CSSProperties = {
-  ...panelStyle,
-  padding: "18px 20px",
-  minWidth: "260px",
-  justifySelf: "end",
-};
+const fileLinkStyle = "text-[#1d4d8f] underline";
 
 async function loadPrdCardsFromApi(): Promise<{ cards: PrdCard[]; harnessRoot: string; runs: RunCard[]; staleRunCount: number; workspaceCount: number }> {
   const response = await fetch(API_PRDS_ROUTE, { cache: "no-store" });
@@ -128,27 +142,6 @@ function formatTimestamp(value: number) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
-}
-
-function formatAge(value: number) {
-  if (!value) {
-    return "Unknown";
-  }
-
-  const delta = Math.max(0, Date.now() - value);
-  const minutes = Math.floor(delta / 60000);
-  const hours = Math.floor(delta / 3600000);
-  const days = Math.floor(delta / 86400000);
-
-  if (days > 0) {
-    return `${days}d ago`;
-  }
-
-  if (hours > 0) {
-    return `${hours}h ago`;
-  }
-
-  return `${Math.max(1, minutes)}m ago`;
 }
 
 function formatLiveDateTime(value: number) {
@@ -232,62 +225,17 @@ function updateFavicon(emoji: string) {
   }
 }
 
-function statusPalette(status: PrdCard["status"]) {
-  if (status === "done") {
-    return { bg: "#d6f5df", fg: "#146c2e", label: "Done" };
-  }
-
-  if (status === "in_progress") {
-    return { bg: "#fde7c6", fg: "#9a5314", label: "In progress" };
-  }
-
-  if (status === "invalid") {
-    return { bg: "#f8d7da", fg: "#8a1c2b", label: "Invalid" };
-  }
-
-  return { bg: "#d8e7ff", fg: "#1d4d8f", label: "Planned" };
-}
-
-function runStatusPalette(run: RunCard) {
-  if (run.isStale) {
-    return { bg: "#f8d7da", fg: "#8a1c2b", label: "Stale" };
-  }
-
-  if (run.status === "running") {
-    return { bg: "#fde7c6", fg: "#9a5314", label: "Running" };
-  }
-
-  if (run.status === "completed") {
-    return { bg: "#d6f5df", fg: "#146c2e", label: "Completed" };
-  }
-
-  return { bg: "#d8e7ff", fg: "#1d4d8f", label: run.status || "Unknown" };
-}
-
-function canManageRun(run: RunCard): boolean {
-  return run.status !== "running";
-}
-
-function viewRun(run: RunCard): void {
-  const viewUrl = `${API_RUNS_VIEW_ROUTE}?file=${encodeURIComponent(run.fileName)}`;
-  window.open(viewUrl, "_blank", "noopener,noreferrer");
-}
 
 export function Visualizer(): React.ReactElement {
   const [cards, setCards] = React.useState<PrdCard[]>([]);
-  const [closeMessage, setCloseMessage] = React.useState("");
-  const [closePending, setClosePending] = React.useState(false);
   const [error, setError] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
   const [now, setNow] = React.useState(() => Date.now());
   const [harnessRoot, setHarnessRoot] = React.useState("");
   const [lastUpdated, setLastUpdated] = React.useState(0);
   const [runs, setRuns] = React.useState<RunCard[]>([]);
-  const [staleRunCount, setStaleRunCount] = React.useState(0);
   const [workspaceCount, setWorkspaceCount] = React.useState(0);
-  const [pendingPrdDelete, setPendingPrdDelete] = React.useState("");
-  const [pendingRunDelete, setPendingRunDelete] = React.useState("");
-  const [filters, setFilters] = React.useState<VisibilityFilters>(DEFAULT_VISIBILITY_FILTERS);
+  const [pendingDelete, setPendingDelete] = React.useState("");
 
   const refresh = React.useCallback(async () => {
     setIsLoading(true);
@@ -297,7 +245,6 @@ export function Visualizer(): React.ReactElement {
       setCards(next.cards);
       setHarnessRoot(next.harnessRoot);
       setRuns(next.runs);
-      setStaleRunCount(next.staleRunCount);
       setWorkspaceCount(next.workspaceCount);
       setError("");
       setLastUpdated(Date.now());
@@ -310,7 +257,7 @@ export function Visualizer(): React.ReactElement {
 
   const requestRunDelete = React.useCallback(
     async (fileName: string) => {
-      setPendingRunDelete(fileName);
+      setPendingDelete(fileName);
 
       try {
         await deleteRunFromApi(fileName);
@@ -318,7 +265,7 @@ export function Visualizer(): React.ReactElement {
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : "Could not delete run file.");
       } finally {
-        setPendingRunDelete("");
+        setPendingDelete("");
       }
     },
     [refresh],
@@ -327,7 +274,7 @@ export function Visualizer(): React.ReactElement {
   const requestPrdDelete = React.useCallback(
     async (fileName: string, workspacePath: string) => {
       const deleteKey = `${workspacePath}:${fileName}`;
-      setPendingPrdDelete(deleteKey);
+      setPendingDelete(deleteKey);
 
       try {
         await deletePrdFromApi(fileName, workspacePath);
@@ -335,7 +282,7 @@ export function Visualizer(): React.ReactElement {
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : "Could not delete PRD artifacts.");
       } finally {
-        setPendingPrdDelete("");
+        setPendingDelete("");
       }
     },
     [refresh],
@@ -358,405 +305,192 @@ export function Visualizer(): React.ReactElement {
     return () => window.clearInterval(timer);
   }, [refresh]);
 
-  const requestClose = React.useCallback(async () => {
-    setClosePending(true);
-    setCloseMessage("");
-
-    try {
-      const response = await fetch(SHUTDOWN_ROUTE, {
-        method: "POST",
-        headers: {
-          accept: "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Could not close visualizer: ${response.status} ${response.statusText}`);
-      }
-
-      setCloseMessage("Shutdown requested. You can close this tab.");
-    } catch (nextError) {
-      setCloseMessage(
-        nextError instanceof TypeError
-          ? "Shutdown requested. If this page stops responding, the server has already exited."
-          : nextError instanceof Error
-            ? nextError.message
-            : "Could not close the visualizer.",
-      );
-    } finally {
-      setClosePending(false);
-    }
-  }, []);
-
   const summary = React.useMemo(() => summarizeCards(cards), [cards]);
 
-  const visibleRuns = React.useMemo(() => filterEntries(runs, filters), [filters, runs]);
-  const visibleCards = React.useMemo(() => filterEntries(cards, filters), [cards, filters]);
+  const visibleRuns = React.useMemo(() => filterEntries(runs, DEFAULT_VISIBILITY_FILTERS), [runs]);
+  const visibleCards = React.useMemo(() => filterEntries(cards, DEFAULT_VISIBILITY_FILTERS), [cards]);
   const visibleSummary = React.useMemo(() => summarizeCards(visibleCards), [visibleCards]);
   const visibleWorkspaceCount = React.useMemo(() => countWorkspaces(visibleRuns, visibleCards), [visibleRuns, visibleCards]);
   const visibleStaleRunCount = React.useMemo(() => visibleRuns.filter((run) => run.isStale).length, [visibleRuns]);
+  const groupedRuns = React.useMemo(() => groupRunsByWorkspace(visibleRuns, visibleCards), [visibleCards, visibleRuns]);
+  const runStatusCounts = React.useMemo(() => countRunsByStatus(visibleRuns), [visibleRuns]);
 
   React.useEffect(() => {
     document.title = browserTitle(summary);
     updateFavicon(statusSignal(dominantStatus(summary)).emoji);
   }, [summary]);
 
-  const statTiles = [
-    {
-      label: "PRDs",
-      value: `${visibleSummary.total}/${summary.total}`,
-      detail: summarizeHiddenItems(visibleSummary.total, summary.total, "PRDs"),
-    },
-    {
-      label: "Tasks done",
-      value: `${visibleSummary.tasksDone}/${visibleSummary.tasksTotal}`,
-      detail:
-        summary.tasksTotal > visibleSummary.tasksTotal
-          ? `${summary.tasksDone}/${summary.tasksTotal} across all PRDs`
-          : "Visible task totals match all PRDs",
-    },
-    {
-      label: "In progress",
-      value: `${visibleSummary.in_progress}/${summary.in_progress}`,
-      detail: summarizeHiddenItems(visibleSummary.in_progress, summary.in_progress, "active PRDs"),
-    },
-    {
-      label: "Worktrees",
-      value: `${visibleWorkspaceCount}/${workspaceCount}`,
-      detail: summarizeHiddenItems(visibleWorkspaceCount, workspaceCount, "worktrees"),
-    },
-    {
-      label: "Runs",
-      value: `${visibleRuns.length}/${runs.length}`,
-      detail: summarizeHiddenItems(visibleRuns.length, runs.length, "runs"),
-    },
-    {
-      label: "Stale runs",
-      value: `${visibleStaleRunCount}/${staleRunCount}`,
-      detail: summarizeHiddenItems(visibleStaleRunCount, staleRunCount, "stale runs"),
-    },
-  ];
-
-  const defaultFiltersActive = !filters.showDemo || !filters.showTestFixture;
-  const filtersMessage = filterStatusMessage(filters, {
-    visibleRuns: visibleRuns.length,
-    totalRuns: runs.length,
-    visibleCards: visibleCards.length,
-    totalCards: cards.length,
-  });
-
   return (
-    <div style={pageStyle}>
-      <div style={shellStyle}>
-        <section style={heroStyle}>
-          <div
-            style={{
-              display: "grid",
-              gap: "18px",
-              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-              alignItems: "start",
-            }}
-          >
-            <div style={{ display: "grid", gap: "8px" }}>
-              <span style={{ letterSpacing: "0.14em", fontSize: "12px", textTransform: "uppercase", color: "#7c6752" }}>
+    <div className="min-h-screen p-8 bg-gradient-to-br from-[#f7f3ea] via-[#efe7d8] to-[#e4ddd2] text-[#1f2933] font-sans">
+      <div className="max-w-[1100px] mx-auto grid gap-6">
+        <section className="bg-[rgba(255,252,246,0.82)] border border-[rgba(31,41,51,0.12)] rounded-3xl shadow-[0_20px_60px_rgba(62,51,39,0.12)] backdrop-blur-2xl p-7 grid gap-4">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 items-start">
+            <Stack gap="8px">
+              <h1 className="m-0 text-4xl lg:text-5xl leading-tight font-serif">
                 Agent Harness Visualizer
-              </span>
-              <h1 style={{ margin: 0, fontSize: "clamp(2rem, 4vw, 3.5rem)", lineHeight: 1, fontFamily: '"IBM Plex Serif", Georgia, serif' }}>
-                PRD status at a glance
               </h1>
-              <p style={{ margin: 0, maxWidth: "700px", fontSize: "16px", color: "#52606d" }}>
-                Watch the global harness state in `~/.agent-harness`, follow tracked worktrees, and turn distributed PRD JSON into a friendlier status board.
-              </p>
-              <div style={{ color: "#52606d", fontSize: "14px", fontWeight: 600 }}>{browserTitle(summary)}</div>
-            </div>
-            <div style={clockCardStyle}>
-              <div style={{ fontSize: "12px", color: "#7c6752", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                Local time
-              </div>
-              <div style={{ fontSize: "22px", fontWeight: 700, lineHeight: 1.3 }}>{formatLiveDateTime(now)}</div>
-            </div>
+            </Stack>
           </div>
 
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
-            <div style={{ ...panelStyle, padding: "10px 16px", fontSize: "14px", color: "#364152" }}>
+          <Cluster>
+            <Surface className="p-2.5 px-4 text-sm text-[#364152]">
               Watching {harnessRoot || "~/.agent-harness"}
-            </div>
+            </Surface>
 
-            <div style={{ ...panelStyle, padding: "10px 16px", fontSize: "14px", color: "#364152" }}>
+            <Surface className="p-2.5 px-4 text-sm text-[#364152]">
               Tracking {visibleWorkspaceCount}/{workspaceCount} worktree{workspaceCount === 1 ? "" : "s"}
-            </div>
+            </Surface>
 
-            <button
-              disabled={isLoading}
-              style={quietButtonStyle}
-              onClick={() => void refresh()}
-              type="button"
-            >
-              {isLoading ? "Refreshing..." : "Refresh now"}
-            </button>
-
-            <button disabled={closePending} style={closeButtonStyle} onClick={() => void requestClose()} type="button">
-              {closePending ? "Closing..." : "Close"}
-            </button>
-
-            <span style={{ color: "#52606d", fontSize: "14px" }}>
+            <span className="text-[#52606d] text-sm">
               {harnessRoot ? `Polling ${harnessRoot}/runs and referenced worktree PRDs` : "Polling ~/.agent-harness"}
             </span>
-          </div>
+          </Cluster>
 
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
-            <button
-              aria-pressed={filters.showDemo}
-              onClick={() => setFilters((current) => ({ ...current, showDemo: !current.showDemo }))}
-              style={{
-                ...filterChipStyle,
-                background: filters.showDemo ? "#1f2933" : filterChipStyle.background,
-                color: filters.showDemo ? "#fffaf1" : filterChipStyle.color,
-              }}
-              type="button"
-            >
-              {filters.showDemo ? "Showing demo worktrees" : "Hiding demo worktrees"}
-            </button>
+          {error ? (
+            <Notice className="bg-[#fff2f2] text-[#8a1c2b]">{error}</Notice>
+          ) : null}
 
-            <button
-              aria-pressed={filters.showTestFixture}
-              onClick={() => setFilters((current) => ({ ...current, showTestFixture: !current.showTestFixture }))}
-              style={{
-                ...filterChipStyle,
-                background: filters.showTestFixture ? "#1f2933" : filterChipStyle.background,
-                color: filters.showTestFixture ? "#fffaf1" : filterChipStyle.color,
-              }}
-              type="button"
-            >
-              {filters.showTestFixture ? "Showing test and fixture entries" : "Hiding test and fixture entries"}
-            </button>
-
-            <span style={{ color: "#52606d", fontSize: "14px" }}>
-              {filtersMessage}
-            </span>
-          </div>
-
-          {closeMessage ? <div style={{ color: "#7a3411", background: "#fff7ed", borderRadius: "16px", padding: "12px 14px" }}>{closeMessage}</div> : null}
-          {error ? <div style={{ color: "#8a1c2b", background: "#fff2f2", borderRadius: "16px", padding: "12px 14px" }}>{error}</div> : null}
-
-          <div style={cardsStyle}>
-            {statTiles.map((tile) => (
-              <div key={tile.label} style={{ ...panelStyle, padding: "18px" }}>
-                <div style={{ fontSize: "13px", color: "#7c6752", marginBottom: "8px" }}>{tile.label}</div>
-                <div style={{ fontSize: "30px", fontWeight: 700 }}>{tile.value}</div>
-                <div style={{ fontSize: "13px", color: "#52606d", marginTop: "8px", lineHeight: 1.4 }}>{tile.detail}</div>
-              </div>
-            ))}
-          </div>
+          <Cluster className="text-[#52606d] text-sm">
+            <span>{visibleRuns.length} visible runs</span>
+            <span>{groupedRuns.length} project sections</span>
+            <span>{runStatusCounts.running} running</span>
+            <span>{runStatusCounts.completed} completed</span>
+            <span>{runStatusCounts.failed} failed</span>
+            <span>{visibleStaleRunCount} stale</span>
+          </Cluster>
         </section>
 
-        <section style={{ display: "grid", gap: "18px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+        <section className="grid gap-4">
+          <div className="flex justify-between items-center gap-3 flex-wrap">
             <div>
-              <h2 style={{ margin: 0, fontSize: "24px", fontFamily: '"IBM Plex Serif", Georgia, serif' }}>Agent runs</h2>
-              <div style={{ color: "#52606d", fontSize: "14px", marginTop: "6px" }}>
-                Run files come from `~/.agent-harness/runs`. Showing {visibleRuns.length} of {runs.length} runs; any non-running entry can be viewed or deleted directly.
+              <h2 className="m-0 text-2xl font-serif">Agent runs</h2>
+              <div className="text-[#52606d] text-sm mt-1.5">
+                Run files come from `~/.agent-harness/runs`. Showing {visibleRuns.length} of {runs.length} runs across {groupedRuns.length} grouped section{groupedRuns.length === 1 ? "" : "s"}; entries older than a week are flagged as stale and can be removed with one click.
               </div>
             </div>
           </div>
 
           {runs.length === 0 ? (
-            <div style={{ ...panelStyle, padding: "24px" }}>No run state files found in `~/.agent-harness/runs`.</div>
+            <Surface className="p-6">No run state files found in `~/.agent-harness/runs`.</Surface>
           ) : visibleRuns.length === 0 ? (
-            <div style={{ ...panelStyle, padding: "24px" }}>No agent runs match the current filters. Use the filter chips above to reveal demo or test entries.</div>
+            <Surface className="p-6">No non-demo agent runs are visible right now.</Surface>
           ) : (
-            visibleRuns.map((run) => {
-              const palette = runStatusPalette(run);
+            groupedRuns.map((group) => (
+              <Surface key={group.label} className="p-5 grid gap-3">
+                <Stack gap="6px">
+                  <Eyebrow>Project section</Eyebrow>
+                  <h3 className="m-0 text-[26px] font-serif">{group.label}</h3>
+                  <div className="text-[#52606d] text-[13px] break-all">{group.workspacePath}</div>
+                </Stack>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 min-w-0">
+                  <StatBlock label="Runs" value={group.runs.length} />
+                  <StatBlock label="PRD progress" value={group.summary.tasksTotal > 0 ? `${group.summary.tasksDone}/${group.summary.tasksTotal}` : "No PRD"} />
+                  <StatBlock label="Stale runs" value={group.runs.filter((run) => run.isStale).length} />
+                </div>
 
-              return (
-                <article key={run.fileName} style={{ ...panelStyle, padding: "22px", display: "grid", gap: "14px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", alignItems: "start" }}>
-                    <div style={{ display: "grid", gap: "6px" }}>
-                      <div style={{ fontSize: "13px", color: "#7c6752" }}>{run.fileName}</div>
-                      <h2 style={{ margin: 0, fontSize: "24px", fontFamily: '"IBM Plex Serif", Georgia, serif' }}>{run.project}</h2>
-                      <div style={{ color: "#52606d", fontSize: "14px" }}>{run.branchName}</div>
-                      <div style={{ color: "#52606d", fontSize: "13px", wordBreak: "break-all" }}>{run.workspacePath}</div>
-                    </div>
+                <Stack gap="3.5">
+                  {group.runs.map((run) => {
+                    const palette = runStatusDisplay(run);
+                    const linkedCard = matchPrdCard(run, visibleCards);
+                    const prdUrl = fileProxyUrl(run.prdPath);
+                    const logUrl = fileProxyUrl(run.logPath);
+                    const canRemove = run.status !== "running" || run.isStale;
+                    const iterationMax = run.maxIterations ?? linkedCard?.tasksTotal ?? null;
 
-                    <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                      <span
-                        style={{
-                          background: palette.bg,
-                          color: palette.fg,
-                          padding: "8px 12px",
-                          borderRadius: "999px",
-                          fontWeight: 700,
-                          fontSize: "13px",
-                        }}
-                      >
-                        {palette.label}
-                      </span>
+                    return (
+                      <Card key={run.fileName} className="rounded-2xl border border-[rgba(31,41,51,0.08)] p-5 grid gap-3.5 bg-[rgba(255,255,255,0.42)]">
+                        <div className="flex justify-between gap-3 flex-wrap items-start">
+                          <Stack gap="1.5">
+                            <div className="text-[13px] text-[#7c6752] tracking-normal normal-case">{run.fileName}</div>
+                            <div className="text-[#52606d] text-sm">{run.branchName}</div>
+                          </Stack>
 
-                      {canManageRun(run) ? (
-                        <>
-                          <button style={quietButtonStyle} onClick={() => viewRun(run)} type="button">
-                            View
-                          </button>
+                          <div className="flex gap-2.5 items-center flex-wrap justify-end">
+                            <StatusBadge background={palette.bg} color={palette.fg} label={palette.label} />
 
-                          <button
-                            disabled={pendingRunDelete === run.fileName}
-                            style={closeButtonStyle}
-                            onClick={() => void requestRunDelete(run.fileName)}
-                            type="button"
-                          >
-                            {pendingRunDelete === run.fileName ? "Deleting..." : "Delete"}
-                          </button>
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
+                            {canRemove ? (
+                              <Button
+                                disabled={pendingDelete === run.fileName}
+                                onClick={() => void requestRunDelete(run.fileName)}
+                                type="button"
+                                size="sm"
+                                className="rounded-full bg-[#8a1c2b] text-white hover:bg-[#6d1622]"
+                              >
+                                {pendingDelete === run.fileName ? "Removing..." : "Remove"}
+                              </Button>
+                            ) : null}
 
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px" }}>
-                    <div style={{ padding: "14px", borderRadius: "16px", background: "rgba(31, 41, 51, 0.04)" }}>
-                      <div style={{ fontSize: "12px", color: "#7c6752", marginBottom: "6px" }}>Phase</div>
-                      <strong>{run.phase}</strong>
-                    </div>
-                    <div style={{ padding: "14px", borderRadius: "16px", background: "rgba(31, 41, 51, 0.04)" }}>
-                      <div style={{ fontSize: "12px", color: "#7c6752", marginBottom: "6px" }}>Iteration</div>
-                      <strong>{run.iteration || "-"}</strong>
-                    </div>
-                    <div style={{ padding: "14px", borderRadius: "16px", background: "rgba(31, 41, 51, 0.04)" }}>
-                      <div style={{ fontSize: "12px", color: "#7c6752", marginBottom: "6px" }}>Heartbeat</div>
-                      <strong>{formatTimestamp(run.lastHeartbeatAt)}</strong>
-                      <div style={{ color: "#52606d", fontSize: "12px", marginTop: "4px" }}>{formatAge(run.lastHeartbeatAt)}</div>
-                    </div>
-                    <div style={{ padding: "14px", borderRadius: "16px", background: "rgba(31, 41, 51, 0.04)" }}>
-                      <div style={{ fontSize: "12px", color: "#7c6752", marginBottom: "6px" }}>PID</div>
-                      <strong>{run.pid ?? "-"}</strong>
-                    </div>
-                  </div>
+                            {prdUrl ? (
+                              <a
+                                href={prdUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded-full px-4 py-2 text-sm bg-[rgba(31,41,51,0.08)] text-[#1f2933] no-underline inline-flex items-center hover:bg-[rgba(31,41,51,0.12)]"
+                              >
+                                View
+                              </a>
+                            ) : null}
+                          </div>
+                        </div>
 
-                  {run.currentTaskId ? (
-                    <div style={{ color: "#364152", lineHeight: 1.5 }}>
-                      <strong>Current task:</strong> {run.currentTaskId}
-                    </div>
-                  ) : null}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                          <StatBlock label="Status" value={palette.label} detail={run.phase || "Unknown phase"} />
+                          <StatBlock label="Iteration" value={formatIterationProgress({ iteration: run.iteration, maxIterations: iterationMax })} />
+                          <StatBlock label="Heartbeat" value={formatRelativeTime(run.lastHeartbeatAt, now)} detail={formatTimestamp(run.lastHeartbeatAt)} />
+                          <StatBlock
+                            label="Duration"
+                            value={formatRunDuration(run, now)}
+                            detail={run.completedAt ? `Completed ${formatTimestamp(run.completedAt)}` : run.startedAt ? `Started ${formatTimestamp(run.startedAt)}` : "Start time unavailable"}
+                          />
+                        </div>
 
-                  {run.lastMessage ? (
-                    <div style={{ color: "#364152", lineHeight: 1.5 }}>
-                      <strong>Last message:</strong> {run.lastMessage}
-                    </div>
-                  ) : null}
+                        {run.currentTaskId ? (
+                          <div className="text-[#364152] leading-relaxed">
+                            <strong>Current task:</strong> {run.currentTaskId}
+                          </div>
+                        ) : null}
 
-                  {run.command ? (
-                    <div style={{ color: "#52606d", fontSize: "13px", wordBreak: "break-all" }}>
-                      <strong>Command:</strong> {run.command}
-                    </div>
-                  ) : null}
+                        {run.lastMessage ? (
+                          <div className="text-[#364152] leading-relaxed">
+                            <strong>Last message:</strong> {run.lastMessage}
+                          </div>
+                        ) : null}
 
-                  {run.logPath ? (
-                    <div style={{ color: "#52606d", fontSize: "13px", wordBreak: "break-all" }}>
-                      <strong>Log:</strong> {run.logPath}
-                    </div>
-                  ) : null}
+                        {run.command ? (
+                          <div className="text-[#52606d] text-[13px] break-all">
+                            <strong>Command:</strong> {run.command}
+                          </div>
+                        ) : null}
 
-                  {run.error ? (
-                    <div style={{ color: "#8a1c2b", background: "#fff2f2", borderRadius: "14px", padding: "12px 14px" }}>{run.error}</div>
-                  ) : null}
-                </article>
-              );
-            })
+                        {run.logPath ? (
+                          <div className="text-[#52606d] text-[13px] break-all">
+                            <strong>Log:</strong>{" "}
+                            <a href={logUrl} target="_blank" rel="noreferrer" className={fileLinkStyle}>
+                              {run.logPath}
+                            </a>
+                          </div>
+                        ) : null}
+
+                        {run.prdPath ? (
+                          <div className="text-[#52606d] text-[13px] break-all">
+                            <strong>PRD:</strong>{" "}
+                            <a href={prdUrl} target="_blank" rel="noreferrer" className={fileLinkStyle}>
+                              {run.prdPath}
+                            </a>
+                          </div>
+                        ) : null}
+
+                        {run.error ? <Notice className="bg-[#fff2f2] text-[#8a1c2b]">{run.error}</Notice> : null}
+                      </Card>
+                    );
+                  })}
+                </Stack>
+              </Surface>
+            ))
           )}
         </section>
 
-        <section style={{ display: "grid", gap: "18px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: "24px", fontFamily: '"IBM Plex Serif", Georgia, serif' }}>PRD cards</h2>
-              <div style={{ color: "#52606d", fontSize: "14px", marginTop: "6px" }}>
-                Showing {visibleCards.length} of {cards.length} PRDs and {visibleSummary.tasksDone}/{visibleSummary.tasksTotal} visible tasks passed.
-                {summary.tasksTotal > visibleSummary.tasksTotal ? ` Global total: ${summary.tasksDone}/${summary.tasksTotal}.` : ""}
-                {" "}Completed PRDs can be removed along with their tracked artifacts.
-              </div>
-            </div>
-            {defaultFiltersActive ? (
-              <div style={{ ...panelStyle, padding: "10px 16px", fontSize: "14px", color: "#364152" }}>
-                Default filters are on
-              </div>
-            ) : null}
-          </div>
-
-          {cards.length === 0 ? (
-            <div style={{ ...panelStyle, padding: "24px" }}>
-              No tracked PRD JSON files found. Add run state files under `~/.agent-harness/runs` that point at repo or worktree paths.
-            </div>
-          ) : visibleCards.length === 0 ? (
-            <div style={{ ...panelStyle, padding: "24px" }}>
-              No PRD cards match the current filters. Reveal demo or test entries to inspect the hidden projects.
-            </div>
-          ) : (
-            visibleCards.map((card) => {
-              const palette = statusPalette(card.status);
-              const prdDeleteKey = `${card.workspacePath}:${card.fileName}`;
-
-              return (
-                <article key={prdDeleteKey} style={{ ...panelStyle, padding: "22px", display: "grid", gap: "14px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", alignItems: "start" }}>
-                    <div style={{ display: "grid", gap: "6px" }}>
-                      <div style={{ fontSize: "13px", color: "#7c6752" }}>{card.fileName}</div>
-                      <h2 style={{ margin: 0, fontSize: "24px", fontFamily: '"IBM Plex Serif", Georgia, serif' }}>{card.project}</h2>
-                      <div style={{ color: "#52606d", fontSize: "14px" }}>{card.branchName}</div>
-                      <div style={{ color: "#52606d", fontSize: "13px", wordBreak: "break-all" }}>{card.workspacePath}</div>
-                    </div>
-                    <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                      <span
-                        style={{
-                          background: palette.bg,
-                          color: palette.fg,
-                          padding: "8px 12px",
-                          borderRadius: "999px",
-                          fontWeight: 700,
-                          fontSize: "13px",
-                        }}
-                      >
-                        {palette.label}
-                      </span>
-
-                      {card.status === "done" ? (
-                        <button
-                          disabled={pendingPrdDelete === prdDeleteKey}
-                          style={closeButtonStyle}
-                          onClick={() => void requestPrdDelete(card.fileName, card.workspacePath)}
-                          type="button"
-                        >
-                          {pendingPrdDelete === prdDeleteKey ? "Removing..." : "Remove completed PRD"}
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <p style={{ margin: 0, color: "#364152", lineHeight: 1.5 }}>{card.description}</p>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px" }}>
-                    <div style={{ padding: "14px", borderRadius: "16px", background: "rgba(31, 41, 51, 0.04)" }}>
-                      <div style={{ fontSize: "12px", color: "#7c6752", marginBottom: "6px" }}>Progress</div>
-                      <strong>{card.tasksDone}/{card.tasksTotal} tasks passed</strong>
-                    </div>
-                    <div style={{ padding: "14px", borderRadius: "16px", background: "rgba(31, 41, 51, 0.04)" }}>
-                      <div style={{ fontSize: "12px", color: "#7c6752", marginBottom: "6px" }}>Next focus</div>
-                      <strong>{card.nextTask}</strong>
-                    </div>
-                    <div style={{ padding: "14px", borderRadius: "16px", background: "rgba(31, 41, 51, 0.04)" }}>
-                      <div style={{ fontSize: "12px", color: "#7c6752", marginBottom: "6px" }}>Last updated</div>
-                      <strong>{formatTimestamp(card.lastModified)}</strong>
-                    </div>
-                  </div>
-
-                  {card.invalidReason ? (
-                    <div style={{ color: "#8a1c2b", background: "#fff2f2", borderRadius: "14px", padding: "12px 14px" }}>{card.invalidReason}</div>
-                  ) : null}
-                </article>
-              );
-            })
-          )}
-        </section>
-
-        <div style={{ color: "#52606d", fontSize: "13px" }}>{lastUpdated ? `Last poll: ${formatTimestamp(lastUpdated)}` : "No data loaded yet"}</div>
+        <div className="text-[#52606d] text-[13px]">{lastUpdated ? `Last poll: ${formatTimestamp(lastUpdated)}` : "No data loaded yet"}</div>
       </div>
     </div>
   );
