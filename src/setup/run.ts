@@ -6,8 +6,8 @@ import { Command } from "commander";
 import { TEMPLATE_VARIABLES } from "./constants";
 import { pathExists } from "./fs";
 import { ensureGitignoreEntry } from "./gitignore";
+import { ensureAgentsMdEntry } from "./agents";
 import { renderedManifestFor, manifestFor, manifestsEqual } from "./manifest";
-import { ensureAgentMemoryIntegration } from "./memory";
 import { loadMetadata } from "./metadata";
 import { confirmInstall } from "./prompt";
 import { currentCommit, managedSkillTargetPath, resolveSetupPaths } from "./runtime";
@@ -26,6 +26,7 @@ export function createProgram(): Command {
     .description("Install harness skills into the current repo.")
     .option("--dry", "Preview install or upgrade actions without changing files")
     .option("--overwrite", "Replace harness-managed skills with the current harness copy")
+    .option("--yes", "Skip confirmation prompt")
     .helpOption("-h, --help");
 
   return program;
@@ -56,15 +57,12 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
     process.exit(1);
   }
 
-  if (!options.dry) {
+  if (!options.dry && !options.yes) {
     await confirmInstall(paths.targetRoot);
   }
 
   await ensureGitignoreEntry(paths.targetRoot, options.dry === true);
-  await ensureAgentMemoryIntegration(paths.targetRoot, {
-    dryRun: options.dry === true,
-    overwrite: options.overwrite === true,
-  });
+  await ensureAgentsMdEntry(paths.targetRoot, options.dry === true);
 
   const metadata = await loadMetadata(paths.metadataPath);
   metadata.source = {

@@ -3,7 +3,7 @@ name: memory
 description: Use when you need to recall past work, previous decisions, error solutions, or project history. Activates the 3-layer memory search workflow for token-efficient retrieval.
 ---
 
-# AgentKits Memory Skill
+# ah-memory Skill
 
 ## When to Activate
 
@@ -15,53 +15,116 @@ Use this skill when:
 - You're missing context that should exist from earlier sessions
 - Starting work on a feature that may have prior decisions recorded
 
-## Prerequisites
+## Memory Categories
 
-Before searching, check if memories exist:
+{% include 'skills/ah-memory/_memory-categories.md.liquid' %}
+
+## Memory File Locations
+
+All memory files are under `.agent-harness/memory/`:
 ```
-memory_status()
+.agent-harness/memory/ARCHITECTURE.md
+.agent-harness/memory/BACKEND.md
+.agent-harness/memory/FRONTEND.md
+.agent-harness/memory/PRODUCT.md
+.agent-harness/memory/BUSINESS.md
+.agent-harness/memory/USER_PREFERENCES.md
 ```
-If the database is empty, skip recall and inform the user.
+
+Entries within files are separated by lines containing only `---`.
 
 ## 3-Layer Search Workflow
 
-### Layer 1: Search Index (lightweight, ~50 tokens/result)
-```
-memory_search(query="your search term")
-```
-- Returns IDs, titles, categories, dates, and relevance scores
-- Filter by category: `decision`, `pattern`, `error`, `context`, `observation`
-- Filter by date: `dateStart="2025-01-01"`, `dateEnd="2025-12-31"`
-- Sort: `orderBy="relevance"` (default), `"date_asc"`, `"date_desc"`
+### Layer 1: rg Search (lightweight)
 
-### Layer 2: Timeline Context (understand what happened around a result)
-```
-memory_timeline(anchor="MEMORY_ID")
-```
-- Shows what happened before/after a specific memory
-- Helps understand the sequence of events
-- Use when you need temporal context
+Use `rg` (ripgrep) for fast searching:
 
-### Layer 3: Full Details (only for filtered IDs)
+```bash
+rg -n "search term" .agent-harness/memory/
 ```
-memory_details(ids=["ID1", "ID2"])
-```
-- Returns complete content for selected memories
-- Limit to 3-5 IDs at a time to conserve tokens
-- NEVER fetch details without filtering through Layer 1 first
 
-## Quick Topic Recall
+Returns file paths and line numbers. Always start with rg before reading files.
 
-For a fast overview of everything known about a topic:
+**Tips:**
+- Use `-i` for case-insensitive: `rg -in "search term" .agent-harness/memory/`
+- Limit to specific category: `rg -n "term" .agent-harness/memory/BACKEND.md`
+- Get just filenames: `rg -l "term" .agent-harness/memory/`
+
+### Layer 2: Read Context
+
+Once rg identifies a file:line, read surrounding context:
+
+```bash
+rg -n -A5 -B5 "search term" .agent-harness/memory/FILE.md
 ```
-memory_recall(topic="authentication")
+
+This shows 5 lines after (-A) and before (-B) the match.
+
+### Layer 3: Read Full Entry
+
+Memory entries are delimited by `---` lines. To read a complete entry:
+
+```bash
+awk '/^---$/ && !done { start=NR+1; done=1 } NR>=start' .agent-harness/memory/FILE.md
 ```
-This returns a grouped summary. Follow up with `memory_details` for specifics.
+
+## Quick Search Examples
+
+Search all categories:
+```bash
+rg -n "JWT" .agent-harness/memory/
+```
+
+Search specific category:
+```bash
+rg -n "React" .agent-harness/memory/FRONTEND.md
+```
+
+Case-insensitive:
+```bash
+rg -in "error handling" .agent-harness/memory/
+```
+
+## Workflow Summary
+
+1. **Start with rg** - Never read files without first using rg to locate relevant entries
+2. **Filter by category** - Use `rg .agent-harness/memory/CATEGORY.md` to narrow search
+3. **Read context first** - Get lines around match before loading full entry
+4. **Load full entry only when needed** - Parse between `---` delimiters
+
+## Entry Format
+
+```markdown
+---
+
+## <Topic>
+Date: YYYY-MM-DD
+
+### Why it matters
+- ...
+
+### Learned constraints
+- ...
+
+### Recommended patterns
+- ...
+
+### Avoid next time
+- ...
+
+### References
+- `path/to/file`
+- `command --flag`
+```
 
 ## Token Efficiency Rules
 
-1. ALWAYS start with `memory_search` (Layer 1), never jump to `memory_details`
-2. Review search results and select only relevant IDs before fetching details
-3. Use filters (category, date range) to narrow results
-4. Limit `memory_details` to 3-5 IDs at a time
-5. This workflow saves ~87% tokens vs fetching everything at once
+1. ALWAYS start with `rg` (Layer 1), never read files blindly
+2. Filter by specific category files when you know the domain
+3. Use context reads before loading full entries
+4. Load full entries only for selected matches
+5. This workflow saves tokens by never loading more than needed
+
+## Consolidation
+
+When entries grow beyond 500 lines in any category file, entries are consolidated to remove duplicates and stale content. The `ah-compound` skill handles this automatically every 10 tool executions.

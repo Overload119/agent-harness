@@ -13,10 +13,10 @@
     "compound": {
       "managed": true,
       "sourceSkill": "ah-compound",
-      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-compound",
+      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/just-way/skills/ah-compound",
       "targetPath": ".agents/skills/compound",
       "installedFiles": {
-        "SKILL.md": "6a6cd3743605b8567b6eeac2d9a7d80f275e512165c1a0bb53c0f6b58a994d43"
+        "SKILL.md": "649a0aa52e6e8d9e771dadbec9949a5c5b2c3e434f9a10d362974784445618d1"
       }
     },
     "oneshot": {
@@ -94,16 +94,17 @@
     "memory": {
       "managed": true,
       "sourceSkill": "ah-memory",
-      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-memory",
+      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/just-way/skills/ah-memory",
       "targetPath": ".agents/skills/memory",
       "installedFiles": {
-        "SKILL.md": "d073439a0722ab1976683d58721b2a3b276c251abaeb248f53b2f304ee46d0d8"
+        "_memory-categories.md": "482366badddecb9c7da5559919d767fa7f81ddc2a82665f1316d72b608895e9c",
+        "SKILL.md": "2f940ccf1819c7df2e2d583d1d8b1875ff222365aa7cf96d3cb5953b2816e80b"
       }
     }
   },
   "source": {
-    "repoRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/brazen-temperature",
-    "commit": "3b64e2b75d2bb0ff741474112c2ae677ad81992e"
+    "repoRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/just-way",
+    "commit": "94db31df861e3328e9ea8144ee368c1a8d9aeeae"
   },
-  "targetRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/brazen-temperature"
+  "targetRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/just-way"
 }

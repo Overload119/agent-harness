@@ -94,23 +94,18 @@ test("setup installs shipped skills, writes managed metadata, creates harness di
     const dryRunOutput = await runSetupAndCapture(dryRunRoot, { dry: true });
 
     expect(dryRunOutput).toContain("Would update .gitignore: add .agent-harness/");
-    expect(dryRunOutput).toContain("Would install: agent-memory mcp");
-    expect(dryRunOutput).toContain("Would install: agent-memory opencode plugin");
     expect(dryRunOutput).toContain("Would install: plan");
     expect(await pathExists(path.join(dryRunRoot, ".gitignore"))).toBe(false);
     expect(await pathExists(path.join(dryRunRoot, ".agents", "agent-harness-install.json"))).toBe(false);
     expect(await pathExists(path.join(dryRunRoot, ".agent-harness", "diagrams"))).toBe(false);
     expect(await pathExists(path.join(dryRunRoot, ".agent-harness", "logs"))).toBe(false);
     expect(await pathExists(path.join(dryRunRoot, "opencode.json"))).toBe(false);
-    expect(await pathExists(path.join(dryRunRoot, ".opencode", "plugins", "agentkits-memory.js"))).toBe(false);
 
     const installOutput = await runSetupAndCapture(installRoot, {});
     const installedSkillsDir = path.join(installRoot, ".agents", "skills");
-     const metadataPath = path.join(installRoot, ".agents", "agent-harness-install.json");
-     const gitignorePath = path.join(installRoot, ".gitignore");
-     const opencodeConfigPath = path.join(installRoot, "opencode.json");
-     const opencodePluginPath = path.join(installRoot, ".opencode", "plugins", "agentkits-memory.js");
-     const installedSkillNames = (await readdir(installedSkillsDir, { withFileTypes: true }))
+    const metadataPath = path.join(installRoot, ".agents", "agent-harness-install.json");
+    const gitignorePath = path.join(installRoot, ".gitignore");
+    const installedSkillNames = (await readdir(installedSkillsDir, { withFileTypes: true }))
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .sort((left, right) => left.localeCompare(right));
@@ -120,20 +115,13 @@ test("setup installs shipped skills, writes managed metadata, creates harness di
       source?: { repoRoot: string; commit: string };
       targetRoot?: string;
     };
-     const gitignoreLines = (await readFile(gitignorePath, "utf8")).trim().split(/\r?\n/);
-     const opencodeConfig = JSON.parse(await readFile(opencodeConfigPath, "utf8")) as {
-       $schema?: string;
-       mcp?: Record<string, { command?: string[]; enabled?: boolean; type?: string }>;
-     };
-     const mermaidSkill = await readFile(path.join(installedSkillsDir, "mermaid", "SKILL.md"), "utf8");
-     const verifySkill = await readFile(path.join(installedSkillsDir, "verify", "SKILL.md"), "utf8");
-     const memoryPlugin = await readFile(opencodePluginPath, "utf8");
+    const gitignoreLines = (await readFile(gitignorePath, "utf8")).trim().split(/\r?\n/);
+    const mermaidSkill = await readFile(path.join(installedSkillsDir, "mermaid", "SKILL.md"), "utf8");
+    const verifySkill = await readFile(path.join(installedSkillsDir, "verify", "SKILL.md"), "utf8");
 
-     expect(installOutput).toContain("Updated .gitignore: added .agent-harness/");
-     expect(installOutput).toContain("install: agent-memory mcp");
-     expect(installOutput).toContain("install: agent-memory opencode plugin");
-     expect(installOutput).toContain("install: plan");
-     expect(installedSkillNames).toEqual(expectedSkills);
+    expect(installOutput).toContain("Updated .gitignore: added .agent-harness/");
+    expect(installOutput).toContain("install: plan");
+    expect(installedSkillNames).toEqual(expectedSkills);
     expect(metadata.formatVersion).toBe(1);
     expect(Object.keys(metadata.skills).sort((left, right) => left.localeCompare(right))).toEqual(expectedSkills);
     expect(metadata.source?.repoRoot).toBe(REPO_ROOT);
@@ -143,23 +131,15 @@ test("setup installs shipped skills, writes managed metadata, creates harness di
       managed: true,
       targetPath: ".agents/skills/plan",
     });
-     expect(gitignoreLines.filter((line) => line === ".agent-harness/")).toHaveLength(1);
-     expect(await pathExists(path.join(installRoot, ".agent-harness", "diagrams"))).toBe(true);
-     expect(await pathExists(path.join(installRoot, ".agent-harness", "logs"))).toBe(true);
-     expect(opencodeConfig.$schema).toBe("https://opencode.ai/config.json");
-     expect(opencodeConfig.mcp?.memory).toEqual({
-       type: "local",
-       command: ["bunx", "--bun", "@aitytech/agentkits-memory", "server"],
-       enabled: true,
-     });
-     expect(memoryPlugin).toContain("Managed by agent-harness setup.");
-     expect(memoryPlugin).toContain("experimental.chat.system.transform");
-     expect(mermaidSkill).toContain(".agent-harness/diagrams/");
-     expect(mermaidSkill).toContain("beautiful-mermaid");
-     expect(mermaidSkill).toContain("renderMermaidSVG");
-     expect(mermaidSkill).toContain("plan flow");
-     expect(verifySkill).toContain("Visual proof");
-     expect(verifySkill).toContain("exact local file path");
+    expect(gitignoreLines.filter((line) => line === ".agent-harness/")).toHaveLength(1);
+    expect(await pathExists(path.join(installRoot, ".agent-harness", "diagrams"))).toBe(true);
+    expect(await pathExists(path.join(installRoot, ".agent-harness", "logs"))).toBe(true);
+    expect(mermaidSkill).toContain(".agent-harness/diagrams/");
+    expect(mermaidSkill).toContain("beautiful-mermaid");
+    expect(mermaidSkill).toContain("renderMermaidSVG");
+    expect(mermaidSkill).toContain("plan flow");
+    expect(verifySkill).toContain("Visual proof");
+    expect(verifySkill).toContain("exact local file path");
 
     const managedSkillPath = path.join(installedSkillsDir, "plan", "SKILL.md");
     const originalManagedSkill = await readFile(managedSkillPath, "utf8");

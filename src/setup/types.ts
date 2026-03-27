@@ -21,6 +21,7 @@ export type InstallMetadata = {
 export type SetupOptions = {
   dry?: boolean;
   overwrite?: boolean;
+  yes?: boolean;
 };
 
 export type SetupPaths = {
