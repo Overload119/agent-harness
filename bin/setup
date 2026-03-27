@@ -3769,7 +3769,7 @@ var require_blank_file_system = __commonJS((exports, module) => {
 var require_local_file_system = __commonJS((exports, module) => {
   var Liquid = require_liquid();
   var fs = __require("fs");
-  var path3 = __require("path");
+  var path4 = __require("path");
   var { promisify } = __require("util");
   var readFile = promisify(fs.readFile);
   var PathPattern = /^[^./][a-zA-Z0-9-_/]+$/;
@@ -3793,7 +3793,7 @@ var require_local_file_system = __commonJS((exports, module) => {
     }
     async fullPath(templatePath) {
       if (PathPattern.test(templatePath)) {
-        return path3.resolve(path3.join(this.root, templatePath + ("." + this.fileExtension)));
+        return path4.resolve(path4.join(this.root, templatePath + ("." + this.fileExtension)));
       } else {
         throw new Liquid.ArgumentError(`Illegal template name '${templatePath}'`);
       }
@@ -4343,7 +4343,7 @@ var require_lib = __commonJS((exports, module) => {
 import process4 from "process";
 
 // src/setup/run.ts
-import { mkdir as mkdir3, rm } from "fs/promises";
+import { mkdir as mkdir2, rm } from "fs/promises";
 import path7 from "path";
 import process3 from "process";
 
@@ -4422,26 +4422,124 @@ async function ensureGitignoreEntry(targetRoot, dryRun) {
   const lines = content === "" ? [] : content.split(/\r?\n/);
   const ignoredPath = `${HARNESS_PATH}/`;
   const rootedIgnoredPath = `/${ignoredPath}`;
+  const negationPath = `!/${HARNESS_PATH}/memory/`;
   if (lines.includes(ignoredPath) || lines.includes(rootedIgnoredPath)) {
-    return false;
-  }
-  if (dryRun) {
-    console.log(`Would update .gitignore: add ${ignoredPath}`);
+    if (lines.includes(negationPath) || lines.includes(`/${negationPath}`)) {
+      return false;
+    }
+    if (dryRun) {
+      console.log(`Would update .gitignore: add ${negationPath}`);
+      return true;
+    }
+    const nextContent2 = content.endsWith(`
+`) || content === "" ? `${content}${negationPath}
+` : `${content}
+${negationPath}
+`;
+    await Bun.write(gitignorePath, nextContent2);
+    console.log(`Updated .gitignore: added ${negationPath}`);
     return true;
   }
+  if (dryRun) {
+    console.log(`Would update .gitignore: add ${ignoredPath} and ${negationPath}`);
+    return true;
+  }
+  const entry = `${ignoredPath}
+${negationPath}`;
   const nextContent = content.endsWith(`
-`) || content === "" ? `${content}${ignoredPath}
+`) || content === "" ? `${content}${entry}
 ` : `${content}
-${ignoredPath}
+${entry}
 `;
   await Bun.write(gitignorePath, nextContent);
-  console.log(`Updated .gitignore: added ${ignoredPath}`);
+  console.log(`Updated .gitignore: added ${ignoredPath} and ${negationPath}`);
+  return true;
+}
+
+// src/setup/agents.ts
+import path3 from "path";
+var MEMORY_SECTION = `\`\`\`agent-harness-memory
+## Agent Harness Memory
+
+The agent harness uses plain Markdown files for memory storage under \`.agent-harness/memory/\`.
+
+### Memory Categories
+
+| Category | Description |
+|----------|-------------|
+| BACKEND | Backend architecture, APIs, and server-side patterns |
+| FRONTEND | UI components, frontend architecture, and rendering |
+| ARCHITECTURE | System design, infrastructure, and cross-cutting concerns |
+| PRODUCT | Product requirements, specs, and feature documentation |
+| BUSINESS | Business logic, rules, and domain knowledge |
+| USER_PREFERENCES | User settings, configuration, and personalization |
+
+### File Structure
+
+- \`.agent-harness/memory/\` - Contains 6 category Markdown files
+- Each file stores entries as Markdown sections separated by \`---\`
+- 500-line soft cap per file; exceeding triggers consolidation
+
+### Commands
+
+- \`ah-memory search <query>\` - Search memory entries across categories
+- \`ah-memory consolidate\` - Validate and compact memory files
+- \`ah-memory consolidate --dry\` - Preview consolidation without writing
+
+### Notes
+
+- Memory entries are auto-consolidated every 10 tool executions
+- Use \`ah-compound\` to add new entries to the appropriate category
+\`\`\`
+
+`;
+async function ensureAgentsMdEntry(targetRoot, dryRun) {
+  const agentsPath = path3.join(targetRoot, "AGENTS.md");
+  const content = await readTextIfExists(agentsPath);
+  const startMarker = "```agent-harness-memory";
+  const endMarker = "```";
+  const startIdx = content.indexOf(startMarker);
+  const endIdx = startIdx !== -1 ? content.indexOf(endMarker, startIdx) : -1;
+  if (startIdx !== -1 && endIdx !== -1) {
+    const existingSection = content.substring(startIdx, endIdx + endMarker.length);
+    if (existingSection === MEMORY_SECTION) {
+      return false;
+    }
+    const nextContent2 = content.substring(0, startIdx) + MEMORY_SECTION + content.substring(endIdx + endMarker.length);
+    if (dryRun) {
+      console.log(`Would update AGENTS.md: replace agent-harness section`);
+      return true;
+    }
+    await Bun.write(agentsPath, nextContent2);
+    console.log(`Updated AGENTS.md: replaced agent-harness section`);
+    return true;
+  }
+  const insertBefore = "## Build And Visualizer Rules";
+  const insertBeforeIdx = content.indexOf(insertBefore);
+  let insertAt;
+  if (insertBeforeIdx !== -1) {
+    insertAt = insertBeforeIdx;
+  } else {
+    insertAt = content.length;
+    if (insertAt > 0 && !content.endsWith(`
+`)) {
+      insertAt = content.lastIndexOf(`
+`) + 1;
+    }
+  }
+  const nextContent = content.substring(0, insertAt) + MEMORY_SECTION + content.substring(insertAt);
+  if (dryRun) {
+    console.log(`Would update AGENTS.md: add agent-harness section`);
+    return true;
+  }
+  await Bun.write(agentsPath, nextContent);
+  console.log(`Updated AGENTS.md: added agent-harness section`);
   return true;
 }
 
 // src/setup/manifest.ts
 import { readlink, readdir } from "fs/promises";
-import path3 from "path";
+import path4 from "path";
 
 // src/setup/template.ts
 var import_liquid = __toESM(require_lib(), 1);
@@ -4467,20 +4565,20 @@ async function manifestFor(directory) {
     const entries = await readdir(currentDirectory, { withFileTypes: true });
     entries.sort((left, right) => left.name.localeCompare(right.name));
     for (const entry of entries) {
-      const entryPath = path3.join(currentDirectory, entry.name);
+      const entryPath = path4.join(currentDirectory, entry.name);
       if (entry.isDirectory()) {
         await walk(entryPath);
         continue;
       }
       if (entry.isSymbolicLink()) {
         const linkTarget = await readlink(entryPath);
-        manifest[path3.relative(directory, entryPath).replaceAll(path3.sep, "/")] = `symlink:${linkTarget}`;
+        manifest[path4.relative(directory, entryPath).replaceAll(path4.sep, "/")] = `symlink:${linkTarget}`;
         continue;
       }
       if (!entry.isFile()) {
         continue;
       }
-      manifest[path3.relative(directory, entryPath).replaceAll(path3.sep, "/")] = await hashFile(entryPath);
+      manifest[path4.relative(directory, entryPath).replaceAll(path4.sep, "/")] = await hashFile(entryPath);
     }
   }
   await walk(directory);
@@ -4495,8 +4593,8 @@ async function renderedManifestFor(directory, variables) {
     const entries = await readdir(currentDirectory, { withFileTypes: true });
     entries.sort((left, right) => left.name.localeCompare(right.name));
     for (const entry of entries) {
-      const entryPath = path3.join(currentDirectory, entry.name);
-      const relativePath = path3.relative(directory, entryPath).replaceAll(path3.sep, "/");
+      const entryPath = path4.join(currentDirectory, entry.name);
+      const relativePath = path4.relative(directory, entryPath).replaceAll(path4.sep, "/");
       const targetRelativePath = targetPathForSourceFile(relativePath);
       if (entry.isDirectory()) {
         await walk(entryPath);
@@ -4519,283 +4617,6 @@ async function renderedManifestFor(directory, variables) {
   }
   await walk(directory);
   return manifest;
-}
-
-// src/setup/memory.ts
-import { mkdir } from "fs/promises";
-import path4 from "path";
-var MEMORY_SERVER_CONFIG = {
-  type: "local",
-  command: ["bunx", "--bun", "@aitytech/agentkits-memory", "server"],
-  enabled: true
-};
-var MANAGED_PLUGIN_HEADER = `// Managed by agent-harness setup.
-`;
-function desiredPluginContent() {
-  return `${MANAGED_PLUGIN_HEADER}
-const MEMORY_COMMAND = ["bunx", "--bun", "@aitytech/agentkits-memory", "hook"];
-
-const TOOL_NAME_MAP = {
-  bash: "Bash",
-  edit: "Edit",
-  fetch: "WebFetch",
-  glob: "Glob",
-  grep: "Grep",
-  read: "Read",
-  skill: "Skill",
-  task: "Task",
-  webfetch: "WebFetch",
-  websearch: "WebSearch",
-  write: "Write",
-};
-
-function getSessionId(value) {
-  if (!value || typeof value !== "object") {
-    return undefined;
-  }
-
-  return value.sessionID || value.sessionId || value.session_id;
-}
-
-function getProperties(event) {
-  if (!event || typeof event !== "object") {
-    return {};
-  }
-
-  return event.properties && typeof event.properties === "object" ? event.properties : event;
-}
-
-function toToolName(tool) {
-  if (typeof tool !== "string") {
-    return "";
-  }
-
-  return TOOL_NAME_MAP[tool.toLowerCase()] || tool;
-}
-
-function normalizeToolInput(input) {
-  if (!input || typeof input !== "object" || Array.isArray(input)) {
-    return input;
-  }
-
-  const normalized = { ...input };
-
-  if (typeof normalized.filePath === "string" && typeof normalized.file_path !== "string") {
-    normalized.file_path = normalized.filePath;
-  }
-
-  if (typeof normalized.subagentType === "string" && typeof normalized.subagent_type !== "string") {
-    normalized.subagent_type = normalized.subagentType;
-  }
-
-  return normalized;
-}
-
-function extractPrompt(properties) {
-  if (!properties || typeof properties !== "object") {
-    return "";
-  }
-
-  if (typeof properties.prompt === "string") {
-    return properties.prompt;
-  }
-
-  if (typeof properties.text === "string") {
-    return properties.text;
-  }
-
-  if (typeof properties.content === "string") {
-    return properties.content;
-  }
-
-  const message = properties.message;
-  if (message && typeof message === "object") {
-    if (typeof message.content === "string") {
-      return message.content;
-    }
-
-    if (Array.isArray(message.content)) {
-      return message.content
-        .map((part) => (part && typeof part === "object" && typeof part.text === "string" ? part.text : ""))
-        .filter(Boolean)
-        .join("
-");
-    }
-  }
-
-  return "";
-}
-
-function isUserMessage(properties) {
-  if (!properties || typeof properties !== "object") {
-    return false;
-  }
-
-  const directRole = typeof properties.role === "string" ? properties.role : undefined;
-  const messageRole =
-    properties.message && typeof properties.message === "object" && typeof properties.message.role === "string"
-      ? properties.message.role
-      : undefined;
-
-  const role = directRole || messageRole;
-  return role === "user";
-}
-
-async function runHook(directory, event, payload) {
-  const child = Bun.spawn({
-    cmd: [...MEMORY_COMMAND, event],
-    cwd: directory,
-    stdin: "pipe",
-    stdout: "pipe",
-    stderr: "ignore",
-  });
-
-  const stdin = JSON.stringify({ cwd: directory, ...payload });
-  await child.stdin.write(stdin);
-  await child.stdin.end();
-
-  const stdout = await new Response(child.stdout).text();
-  await child.exited;
-
-  const lines = stdout
-    .split(/\r?
-/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const lastLine = lines.at(-1);
-
-  if (!lastLine) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(lastLine);
-  } catch {
-    return {};
-  }
-}
-
-export const AgentKitsMemoryPlugin = async ({ $, directory }) => {
-  const lastPromptBySession = new Map();
-
-  return {
-    async "experimental.chat.system.transform"(input, output) {
-      const result = await runHook(directory, "context", {
-        session_id: getSessionId(input),
-      });
-
-      if (typeof result.additionalContext === "string" && result.additionalContext.trim() !== "") {
-        output.system.push(result.additionalContext);
-      }
-    },
-
-    async event({ event }) {
-      const properties = getProperties(event);
-      const sessionId = getSessionId(properties) || getSessionId(event);
-
-      if (event.type === "message.updated" && sessionId && isUserMessage(properties)) {
-        const prompt = extractPrompt(properties).trim();
-        if (prompt !== "" && lastPromptBySession.get(sessionId) !== prompt) {
-          lastPromptBySession.set(sessionId, prompt);
-          await runHook(directory, "session-init", {
-            prompt,
-            session_id: sessionId,
-          });
-        }
-      }
-
-      if ((event.type === "session.idle" || event.type === "session.deleted") && sessionId) {
-        await runHook(directory, "summarize", {
-          session_id: sessionId,
-          stop_reason: event.type,
-        });
-      }
-    },
-
-    async "tool.execute.after"(input, output) {
-      await runHook(directory, "observation", {
-        session_id: getSessionId(input),
-        tool_input: normalizeToolInput(input?.args),
-        tool_name: toToolName(input?.tool),
-        tool_result: {
-          metadata: output?.metadata,
-          output: output?.output,
-          title: output?.title,
-        },
-      });
-    },
-  };
-};
-`;
-}
-function desiredOpencodeConfig(existing) {
-  let parsed = {};
-  if (existing.trim() !== "") {
-    parsed = JSON.parse(existing);
-  }
-  const mcp = parsed.mcp && typeof parsed.mcp === "object" && !Array.isArray(parsed.mcp) ? { ...parsed.mcp } : {};
-  mcp.memory = MEMORY_SERVER_CONFIG;
-  const nextConfig = {
-    ...parsed,
-    mcp
-  };
-  if (typeof nextConfig.$schema !== "string") {
-    nextConfig.$schema = "https://opencode.ai/config.json";
-  }
-  return `${JSON.stringify(nextConfig, null, 2)}
-`;
-}
-async function ensureAgentMemoryIntegration(targetRoot, options) {
-  const opencodeConfigPath = path4.join(targetRoot, "opencode.json");
-  const existingOpencodeConfig = await readTextIfExists(opencodeConfigPath);
-  let nextOpencodeConfig = "";
-  try {
-    nextOpencodeConfig = desiredOpencodeConfig(existingOpencodeConfig);
-  } catch {
-    console.log(`${options.dryRun ? "Would skip" : "skip"}: agent-memory mcp (opencode.json is not valid JSON and was left unchanged)`);
-    return;
-  }
-  if (existingOpencodeConfig === "") {
-    console.log(`${options.dryRun ? "Would install" : "install"}: agent-memory mcp`);
-    if (!options.dryRun) {
-      await Bun.write(opencodeConfigPath, nextOpencodeConfig);
-    }
-  } else if (existingOpencodeConfig !== nextOpencodeConfig) {
-    console.log(`${options.dryRun ? "Would update" : "update"}: agent-memory mcp`);
-    if (!options.dryRun) {
-      await Bun.write(opencodeConfigPath, nextOpencodeConfig);
-    }
-  } else {
-    console.log(`${options.dryRun ? "Would keep" : "up to date"}: agent-memory mcp`);
-  }
-  const pluginPath = path4.join(targetRoot, ".opencode", "plugins", "agentkits-memory.js");
-  const existingPlugin = await readTextIfExists(pluginPath);
-  const nextPlugin = desiredPluginContent();
-  if (existingPlugin === "") {
-    console.log(`${options.dryRun ? "Would install" : "install"}: agent-memory opencode plugin`);
-    if (!options.dryRun) {
-      await mkdir(path4.dirname(pluginPath), { recursive: true });
-      await Bun.write(pluginPath, nextPlugin);
-    }
-    return;
-  }
-  if (existingPlugin === nextPlugin) {
-    console.log(`${options.dryRun ? "Would keep" : "up to date"}: agent-memory opencode plugin`);
-    return;
-  }
-  if (!existingPlugin.startsWith(MANAGED_PLUGIN_HEADER)) {
-    console.log(`${options.dryRun ? "Would skip" : "skip"}: agent-memory opencode plugin ` + "(existing plugin is not managed by agent-harness)");
-    return;
-  }
-  if (!options.overwrite) {
-    console.log(`${options.dryRun ? "Would skip" : "skip"}: agent-memory opencode plugin ` + "(managed plugin differs from the current harness copy; re-run with --overwrite)");
-    return;
-  }
-  console.log(`${options.dryRun ? "Would update" : "update"}: agent-memory opencode plugin`);
-  if (!options.dryRun) {
-    await mkdir(path4.dirname(pluginPath), { recursive: true });
-    await Bun.write(pluginPath, nextPlugin);
-  }
 }
 
 // src/setup/metadata.ts
@@ -4899,7 +4720,7 @@ function managedSkillTargetPath(skillName) {
 }
 
 // src/setup/skills.ts
-import { mkdir as mkdir2, readlink as readlink2, readdir as readdir2, symlink } from "fs/promises";
+import { mkdir, readlink as readlink2, readdir as readdir2, symlink } from "fs/promises";
 import path6 from "path";
 function skillNameFromSource(directoryName) {
   return directoryName.startsWith("ah-") ? directoryName.slice(3) : directoryName;
@@ -4921,7 +4742,7 @@ async function listSkillDirectories(sourceDir) {
   return skills;
 }
 async function writeSkillDirectory(sourceDir, targetDir, variables) {
-  await mkdir2(targetDir, { recursive: true });
+  await mkdir(targetDir, { recursive: true });
   async function walk(currentSourceDir, currentTargetDir) {
     const entries = await readdir2(currentSourceDir, { withFileTypes: true });
     entries.sort((left, right) => left.name.localeCompare(right.name));
@@ -4930,7 +4751,7 @@ async function writeSkillDirectory(sourceDir, targetDir, variables) {
       const targetName = entry.name.endsWith(".liquid") ? entry.name.slice(0, -".liquid".length) : entry.name;
       const targetPath = path6.join(currentTargetDir, targetName);
       if (entry.isDirectory()) {
-        await mkdir2(targetPath, { recursive: true });
+        await mkdir(targetPath, { recursive: true });
         await walk(sourcePath, targetPath);
         continue;
       }
@@ -4957,7 +4778,7 @@ async function removePath(targetPath) {
 }
 function createProgram() {
   const program2 = new Command;
-  program2.name("setup").description("Install harness skills into the current repo.").option("--dry", "Preview install or upgrade actions without changing files").option("--overwrite", "Replace harness-managed skills with the current harness copy").helpOption("-h, --help");
+  program2.name("setup").description("Install harness skills into the current repo.").option("--dry", "Preview install or upgrade actions without changing files").option("--overwrite", "Replace harness-managed skills with the current harness copy").option("--yes", "Skip confirmation prompt").helpOption("-h, --help");
   return program2;
 }
 async function runSetupCli(argv) {
@@ -4980,14 +4801,11 @@ async function runSetup(options, argv) {
     console.error(`Target directory not found: ${paths.targetRoot}`);
     process3.exit(1);
   }
-  if (!options.dry) {
+  if (!options.dry && !options.yes) {
     await confirmInstall(paths.targetRoot);
   }
   await ensureGitignoreEntry(paths.targetRoot, options.dry === true);
-  await ensureAgentMemoryIntegration(paths.targetRoot, {
-    dryRun: options.dry === true,
-    overwrite: options.overwrite === true
-  });
+  await ensureAgentsMdEntry(paths.targetRoot, options.dry === true);
   const metadata = await loadMetadata(paths.metadataPath);
   metadata.source = {
     repoRoot: paths.repoRoot,
@@ -5056,7 +4874,7 @@ async function runSetup(options, argv) {
       console.log(`${prefix}install: ${skillName}`);
       counts.installed += 1;
       if (!options.dry) {
-        await mkdir3(paths.targetDir, { recursive: true });
+        await mkdir2(paths.targetDir, { recursive: true });
         await writeSkillDirectory(sourceSkillDir, targetSkillDir, TEMPLATE_VARIABLES);
         metadata.skills[skillName] = {
           managed: true,
@@ -5072,7 +4890,7 @@ async function runSetup(options, argv) {
       console.log(detail ? `${prefix}update: ${skillName} (${detail})` : `${prefix}update: ${skillName}`);
       counts.updated += 1;
       if (!options.dry) {
-        await mkdir3(paths.targetDir, { recursive: true });
+        await mkdir2(paths.targetDir, { recursive: true });
         await removePath(targetSkillDir);
         await writeSkillDirectory(sourceSkillDir, targetSkillDir, TEMPLATE_VARIABLES);
         metadata.skills[skillName] = {
@@ -5129,9 +4947,9 @@ async function runSetup(options, argv) {
     counts.removed += 1;
   }
   if (!options.dry) {
-    await mkdir3(paths.targetDiagramsDir, { recursive: true });
-    await mkdir3(paths.targetLogsDir, { recursive: true });
-    await mkdir3(paths.targetAgentsDir, { recursive: true });
+    await mkdir2(paths.targetDiagramsDir, { recursive: true });
+    await mkdir2(paths.targetLogsDir, { recursive: true });
+    await mkdir2(paths.targetAgentsDir, { recursive: true });
     await Bun.write(paths.metadataPath, `${JSON.stringify(metadata, null, 2)}
 `);
   }
