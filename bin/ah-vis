@@ -4031,9 +4031,10 @@ import path4 from "path";
 async function buildVisualizer(rootDir, outDir) {
   await rm2(outDir, { force: true, recursive: true });
   await mkdir2(outDir, { recursive: true });
+  const srcHtml = path4.join(rootDir, "src", "visualizer", "index.html");
   const result = await Bun.build({
     entrypoints: [path4.join(rootDir, "src", "visualizer", "main.tsx")],
-    external: ["react", "react-dom/client"],
+    external: ["react", "react-dom", "react-dom/client"],
     format: "esm",
     minify: false,
     outdir: outDir,
@@ -4046,7 +4047,7 @@ async function buildVisualizer(rootDir, outDir) {
     }
     throw new Error("Failed to build visualizer.");
   }
-  await copyFile(path4.join(rootDir, "src", "visualizer", "index.html"), path4.join(outDir, "index.html"));
+  await copyFile(srcHtml, path4.join(outDir, "index.html"));
 }
 
 // src/visualizer/server-state.ts

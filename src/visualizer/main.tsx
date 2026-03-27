@@ -2,6 +2,7 @@ import * as React from "react";
 import { createRoot } from "react-dom/client";
 
 import Visualizer from "./visualizer";
+import "./index.css";
 
 const root = document.getElementById("app");
 
