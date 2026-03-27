@@ -22,9 +22,9 @@ Rules:
    - Do not read or write files outside the repo except through the provided CLI commands.
    - Never inspect, read, glob, or write `~/.agent-harness` directly.
    - In particular, do not read the run state file path and do not enumerate `~/.agent-harness/runs/`.
-   - Treat the run state file path as an opaque handle that may only be passed back to `bin/ah-run-state update --run-file ...`.
+   - Treat the run state file path as an opaque handle that may only be passed back to `/ah-run-state update --run-file ...`.
 2. Use CLI commands for shared run persistence.
-   - Use `bin/ah-run-state update --run-file ...` to report phase or progress messages when helpful.
+   - Use `/ah-run-state update --run-file ...` to report phase or progress messages when helpful.
    - Never use Read, Glob, Grep, or direct filesystem access on the run state file or the runs directory.
 3. Work on one task only.
    - Read the PRD.
@@ -44,9 +44,9 @@ Rules:
 Suggested flow:
 
 1. Read the PRD and inspect the assigned task.
-2. Report start via `bin/ah-run-state update`.
+2. Report start via `/ah-run-state update`.
 3. Make the implementation changes.
 4. Run verification for the assigned task.
 5. Update the assigned PRD task state in the repo.
-6. Report final phase/message via `bin/ah-run-state update`.
+6. Report final phase/message via `/ah-run-state update`.
 7. Print the final result sentinel.
