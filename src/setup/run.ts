@@ -1,4 +1,4 @@
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rm, cp } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { Command } from "commander";
@@ -13,6 +13,8 @@ import { confirmInstall } from "./prompt";
 import { currentCommit, managedSkillTargetPath, resolveSetupPaths } from "./runtime";
 import { listSkillDirectories, skillNameFromSource, writeSkillDirectory } from "./skills";
 import type { SetupOptions } from "./types";
+
+const HARNESS_BIN_CLIS = ["ah-loop", "ah-run-state", "ah-vis"] as const;
 
 async function removePath(targetPath: string): Promise<void> {
   await rm(targetPath, { force: true, recursive: true });
@@ -64,6 +66,35 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
   await ensureGitignoreEntry(paths.targetRoot, options.dry === true);
   await ensureAgentsMdEntry(paths.targetRoot, options.dry === true);
 
+  const prefix = options.dry ? "Would " : "";
+  const harnessBinDir = path.join(paths.repoRoot, ".agent-harness", "bin");
+
+  console.log(`${prefix}building harness CLIs...`);
+  if (!options.dry) {
+    const buildResult = Bun.spawnSync({
+      cmd: ["bun", "scripts/build.ts"],
+      cwd: paths.repoRoot,
+      stdout: "inherit",
+      stderr: "inherit",
+    });
+    if (buildResult.exitCode !== 0) {
+      console.error("Failed to build harness CLIs.");
+      process.exit(1);
+    }
+  }
+
+  console.log(`${prefix}installing harness CLIs to ${paths.targetBinDir}...`);
+  if (!options.dry) {
+    await mkdir(paths.targetBinDir, { recursive: true });
+    for (const cli of HARNESS_BIN_CLIS) {
+      const source = path.join(harnessBinDir, cli);
+      const dest = path.join(paths.targetBinDir, cli);
+      if (await pathExists(source)) {
+        await cp(source, dest, { preserveTimestamps: true });
+      }
+    }
+  }
+
   const metadata = await loadMetadata(paths.metadataPath);
   metadata.source = {
     repoRoot: paths.repoRoot,
@@ -86,7 +117,6 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
   };
 
   const sourceSkillNames = new Set(skills.map((skillDir) => skillNameFromSource(path.basename(skillDir))));
-  const prefix = options.dry ? "Would " : "";
 
   for (const sourceSkillDir of skills) {
     const sourceSkillName = path.basename(sourceSkillDir);
@@ -226,6 +256,7 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
   }
 
   if (!options.dry) {
+    await mkdir(paths.targetBinDir, { recursive: true });
     await mkdir(paths.targetDiagramsDir, { recursive: true });
     await mkdir(paths.targetLogsDir, { recursive: true });
     await mkdir(paths.targetAgentsDir, { recursive: true });
