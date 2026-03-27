@@ -6,7 +6,6 @@ const rootDir = path.resolve(import.meta.dir, "..");
 const outputBase = path.join(rootDir, ".agent-harness", "bin");
 
 const targets = [
-  { entrypoint: path.join(rootDir, "src", "cli.ts"), output: path.join(outputBase, "setup"), suffix: "cli.js" },
   { entrypoint: path.join(rootDir, "src", "visualizer-cli.ts"), output: path.join(outputBase, "ah-vis"), suffix: "visualizer-cli.js" },
   { entrypoint: path.join(rootDir, "src", "loop-cli.ts"), output: path.join(outputBase, "ah-loop"), suffix: "loop-cli.js" },
   { entrypoint: path.join(rootDir, "src", "run-state-cli.ts"), output: path.join(outputBase, "ah-run-state"), suffix: "run-state-cli.js" },
