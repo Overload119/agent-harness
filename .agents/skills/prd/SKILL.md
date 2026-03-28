@@ -47,8 +47,8 @@ Output format:
 - Write JSON to `./.agent-harness/prds/<feature-name-kebab-case>.json`
 - Return the JSON in the response as well
 - After presenting the PRD, always end by asking what the user wants to do next and give numbered options.
-- Those options must include starting the loop with `ah-loop` for the generated PRD.
-- Treat "start the loop" as running `ah-loop` against the generated PRD path.
+- Those options must include starting the loop with `.agent-harness/bin/ah-loop` for the generated PRD.
+- Treat "start the loop" as running `.agent-harness/bin/ah-loop` against the generated PRD path.
 - Make clear that `ah-loop` continues until the entire PRD is complete, meaning every task has `passes: true`, unless it reaches the default limit of `--max-iterations 10` first or the user overrides that limit.
 
 Use this schema:
@@ -91,9 +91,9 @@ If the input is already JSON, validate it against the schema above, fix obvious 
 
 Always end the response with numbered next-step options. Include these choices at a minimum:
 
-1. Start the loop now with `ah-loop <generated-prd-path>`
+1. Start the loop now with `.agent-harness/bin/ah-loop <generated-prd-path>`
 2. Make changes to this PRD
 3. Stop here for now
 
-When offering the loop option, make clear that `ah-loop` is the command that starts execution of the PRD.
-Also make clear that `ah-loop` defaults to `--max-iterations 10`, keeps running until all PRD tasks are complete if it finishes within that limit, and can be started with a different `--max-iterations <number>` when needed.
+When offering the loop option, make clear that `.agent-harness/bin/ah-loop` is the command that starts execution of the PRD.
+Also make clear that `.agent-harness/bin/ah-loop` defaults to `--max-iterations 10`, keeps running until all PRD tasks are complete if it finishes within that limit, and can be started with a different `--max-iterations <number>` when needed.

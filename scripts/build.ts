@@ -1,15 +1,17 @@
-import { chmod, writeFile } from "node:fs/promises";
+import { chmod, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
 const SHEBANG = "#!/usr/bin/env bun";
 const rootDir = path.resolve(import.meta.dir, "..");
+const outputBase = path.join(rootDir, ".agent-harness", "bin");
 
 const targets = [
-  { entrypoint: path.join(rootDir, "src", "cli.ts"), output: path.join(rootDir, "bin", "setup"), suffix: "cli.js" },
-  { entrypoint: path.join(rootDir, "src", "visualizer-cli.ts"), output: path.join(rootDir, "bin", "ah-vis"), suffix: "visualizer-cli.js" },
-  { entrypoint: path.join(rootDir, "src", "loop-cli.ts"), output: path.join(rootDir, "bin", "ah-loop"), suffix: "loop-cli.js" },
-  { entrypoint: path.join(rootDir, "src", "run-state-cli.ts"), output: path.join(rootDir, "bin", "ah-run-state"), suffix: "run-state-cli.js" },
+  { entrypoint: path.join(rootDir, "src", "visualizer-cli.ts"), output: path.join(outputBase, "ah-vis"), suffix: "visualizer-cli.js" },
+  { entrypoint: path.join(rootDir, "src", "loop-cli.ts"), output: path.join(outputBase, "ah-loop"), suffix: "loop-cli.js" },
+  { entrypoint: path.join(rootDir, "src", "run-state-cli.ts"), output: path.join(outputBase, "ah-run-state"), suffix: "run-state-cli.js" },
 ];
+
+await mkdir(outputBase, { recursive: true });
 
 const result = await Bun.build({
   entrypoints: targets.map((target) => target.entrypoint),

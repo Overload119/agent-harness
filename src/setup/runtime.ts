@@ -7,10 +7,14 @@ import type { SetupPaths } from "./types";
 export function resolveSetupPaths(argv: string[]): SetupPaths {
   const scriptPath = path.resolve(argv[1]);
   const scriptDir = path.dirname(scriptPath);
-  const repoRoot = path.resolve(scriptDir, "..");
+  let repoRoot = path.resolve(scriptDir, "..");
+  if (path.basename(repoRoot) === ".agent-harness") {
+    repoRoot = path.resolve(repoRoot, "..");
+  }
   const sourceDir = path.join(repoRoot, "skills");
   const targetRoot = path.resolve(process.cwd());
   const targetAgentsDir = path.join(targetRoot, ".agents");
+  const targetBinDir = repoHarnessSubdir(targetRoot, "bin");
   const targetDiagramsDir = repoHarnessSubdir(targetRoot, "diagrams");
   const targetDir = path.join(targetAgentsDir, "skills");
   const targetLogsDir = repoHarnessSubdir(targetRoot, "logs");
@@ -21,6 +25,7 @@ export function resolveSetupPaths(argv: string[]): SetupPaths {
     repoRoot,
     sourceDir,
     targetAgentsDir,
+    targetBinDir,
     targetDiagramsDir,
     targetDir,
     targetLogsDir,
