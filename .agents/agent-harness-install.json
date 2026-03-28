@@ -40,10 +40,10 @@
     "prd": {
       "managed": true,
       "sourceSkill": "ah-prd",
-      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-prd",
+      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/foul-selenium/skills/ah-prd",
       "targetPath": ".agents/skills/prd",
       "installedFiles": {
-        "SKILL.md": "88fe41c5f1d6fa312f6350aac410834a964b2db6dbf61529ed3fa9819e052eb6"
+        "SKILL.md": "ba6b2d13e7b9962ea25d4a3b71f250e6f225ad57c1243264771f7476a6e9e409"
       }
     },
     "review": {
@@ -85,10 +85,10 @@
     "executor": {
       "managed": true,
       "sourceSkill": "ah-executor",
-      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/brazen-temperature/skills/ah-executor",
+      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/foul-selenium/skills/ah-executor",
       "targetPath": ".agents/skills/executor",
       "installedFiles": {
-        "SKILL.md": "649c6071995aee0d50d72d3826b07a307adc61c11f49b0bf772c5aac32611d51"
+        "SKILL.md": "a119f08c46173dd45dac0306e363dd99afa12e72a9e6b4b52b7eacf631199b82"
       }
     },
     "memory": {
@@ -103,8 +103,8 @@
     }
   },
   "source": {
-    "repoRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/just-way",
-    "commit": "94db31df861e3328e9ea8144ee368c1a8d9aeeae"
+    "repoRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/foul-selenium",
+    "commit": "b27ac3218300a18208293919f9945452eebabf71"
   },
-  "targetRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/just-way"
+  "targetRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/foul-selenium"
 }
