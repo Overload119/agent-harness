@@ -1,14 +1,16 @@
 export const MemoryTurnCounter = async ({ client, $, directory, worktree }) => {
   const CONSOLIDATE_THRESHOLD = 6;
+  const baseDir = directory || process.cwd();
 
   function getSessionStoragePath(sessionId) {
-    return `.agent-harness/memory/.turn_count_${sessionId}`;
+    return `${baseDir}/.agent-harness/memory/.turn_count_${sessionId}`;
   }
 
   async function loadTurnCount(sessionId) {
     const sessionFile = getSessionStoragePath(sessionId);
     try {
-      const content = await $`cat ${sessionFile}`;
+      await $`mkdir -p "${baseDir}/.agent-harness/memory"`;
+      const content = await $`cat "${sessionFile}"`;
       const data = JSON.parse(content.stdout.trim());
       return data.count || 0;
     } catch {
@@ -18,7 +20,8 @@ export const MemoryTurnCounter = async ({ client, $, directory, worktree }) => {
 
   async function saveTurnCount(sessionId, count) {
     const sessionFile = getSessionStoragePath(sessionId);
-    await $`echo ${JSON.stringify({ sessionId, count })} > ${sessionFile}`;
+    await $`mkdir -p "${baseDir}/.agent-harness/memory"`;
+    await $`echo "${JSON.stringify({ sessionId, count })}" > "${sessionFile}"`;
   }
 
   async function triggerConsolidate(sessionId) {
@@ -27,7 +30,8 @@ export const MemoryTurnCounter = async ({ client, $, directory, worktree }) => {
       sessionId,
       triggeredAt: new Date().toISOString(),
     });
-    await $`echo ${consolidateMsg} > .agent-harness/memory/.turn_count`;
+    await $`mkdir -p "${baseDir}/.agent-harness/memory"`;
+    await $`echo "${consolidateMsg}" > "${baseDir}/.agent-harness/memory/.turn_count"`;
   }
 
   let currentSessionId = null;
