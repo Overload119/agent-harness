@@ -2171,7 +2171,8 @@ function homeHarnessSubdir(...segments) {
 // src/setup/constants.ts
 var HARNESS_PATH = HARNESS_DIR_NAME;
 var TEMPLATE_VARIABLES = {
-  path: HARNESS_PATH
+  path: HARNESS_PATH,
+  bin_path: path7.join(HARNESS_PATH, "bin")
 };
 
 // src/setup/fs.ts
