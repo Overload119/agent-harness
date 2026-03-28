@@ -5,7 +5,11 @@ plans/**
 tasks/**
 
 node_modules/
+
 .agent-harness/*
-!.agent-harness/memory/**
+!.agent-harness/memory/
+!.agent-harness/memory/*.md
+.agent-harness/memory/.turn_count*
+.agent-harness/memory/.turn_count_default*
 .agent-harness/
 !/.agent-harness/memory/

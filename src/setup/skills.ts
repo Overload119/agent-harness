@@ -57,6 +57,10 @@ export async function writeSkillDirectory(
         continue;
       }
 
+      if (entry.name.startsWith("_")) {
+        continue;
+      }
+
       if (!entry.isFile()) {
         continue;
       }

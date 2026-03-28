@@ -33,5 +33,6 @@ export type SetupPaths = {
   targetDiagramsDir: string;
   targetDir: string;
   targetLogsDir: string;
+  targetMemoryDir: string;
   targetRoot: string;
 };

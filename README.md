@@ -2,7 +2,7 @@
 
 Everyone's got an agent harness. This is mine, built exactly how I want it to work and intended to be used with OpenCode.
 
-It serves as a baseline setup for agent-driven development, giving me a consistent starting point that I can reuse and adapt as needed across my projects.
+It serves as a baseline setup for agent-driven development, giving me a consistent starting point that I can reuse and adapt as needed across my projects. Since I'm only building RoR apps, it works for those specifically. It's not meant to be used by anyone else. 
 
 ## Prerequisites
 
@@ -10,7 +10,7 @@ Install bun.
 
 ## Getting Started
 
-Run this command in the repo you want to bootstrap with this harness.
+Run this command in the repo you want to bootstrap with this harness. Same step works for updating.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/overload119/agent-harness/main/install.sh | bash
@@ -22,23 +22,11 @@ By default, `bin/setup` reads skills from the cloned harness repo, installs them
 
 Before it makes changes, `bin/setup` prompts for confirmation and shows the current repo path it will install into.
 
-If you want to pass flags through to `bin/setup`, use `bash -s --`:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/overload119/agent-harness/main/install.sh | bash -s -- --dry
-```
-
-If you prefer the explicit clone-and-run flow, this still works:
-
-```bash
-mkdir -p /tmp/agent-harness && git clone https://github.com/overload119/agent-harness.git /tmp/agent-harness && /tmp/agent-harness/bin/setup
-```
-
 ## Skills
 
 Run `bin/setup` inside the repo you want to bootstrap to render the harness repo's `skills/**/SKILL.md.liquid` templates and install the result into `.agents/skills/`.
 
-Current Ralph loop-oriented shipped skills:
+Skills:
 
 - `/plan`: expand a rough request into an execution plan
 - `/commit`: inspect the working tree and draft coherent commit proposals before staging anything
@@ -51,8 +39,6 @@ Current Ralph loop-oriented shipped skills:
 - `/oneshot`: run the loop as a coordinated plan -> prd -> execute -> review -> verify flow
 - `/ship`: prepare validated work for shipping using repo-local instructions when available
 - `/memory`: recall prior decisions, patterns, errors, and session history through AgentKits Memory
-
-The installer renders templates with shared variables such as `{ path: ".agent-harness" }`, writes `.agents/agent-harness-install.json` so upgrades can safely target harness-managed skill directories, adds `.agent-harness/` to the target repo's `.gitignore`, writes an `opencode.json` MCP entry for `@aitytech/agentkits-memory` using `bunx`, and installs a project-level OpenCode plugin at `.opencode/plugins/agentkits-memory.js` for memory capture hooks.
 
 Mermaid diagrams are now a first-class harness artifact:
 
