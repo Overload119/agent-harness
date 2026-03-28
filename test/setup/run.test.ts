@@ -94,6 +94,10 @@ test("setup installs shipped skills, writes managed metadata, creates harness di
     const dryRunOutput = await runSetupAndCapture(dryRunRoot, { dry: true });
 
     expect(dryRunOutput).toContain("Would update .gitignore: add .agent-harness/");
+    expect(dryRunOutput).toContain("Would update .gitignore: add !.agent-harness/memory/");
+    expect(dryRunOutput).toContain("Would update .gitignore: add !.agent-harness/memory/*.md");
+    expect(dryRunOutput).toContain("Would update .gitignore: add .agent-harness/memory/.turn_count*");
+    expect(dryRunOutput).toContain("Would update .gitignore: add .agent-harness/memory/.turn_count_default*");
     expect(dryRunOutput).toContain("Would install: plan");
     expect(await pathExists(path.join(dryRunRoot, ".gitignore"))).toBe(false);
     expect(await pathExists(path.join(dryRunRoot, ".agents", "agent-harness-install.json"))).toBe(false);
@@ -120,6 +124,10 @@ test("setup installs shipped skills, writes managed metadata, creates harness di
     const verifySkill = await readFile(path.join(installedSkillsDir, "verify", "SKILL.md"), "utf8");
 
     expect(installOutput).toContain("Updated .gitignore: added .agent-harness/");
+    expect(installOutput).toContain("Updated .gitignore: added !.agent-harness/memory/");
+    expect(installOutput).toContain("Updated .gitignore: added !.agent-harness/memory/*.md");
+    expect(installOutput).toContain("Updated .gitignore: added .agent-harness/memory/.turn_count*");
+    expect(installOutput).toContain("Updated .gitignore: added .agent-harness/memory/.turn_count_default*");
     expect(installOutput).toContain("install: plan");
     expect(installedSkillNames).toEqual(expectedSkills);
     expect(metadata.formatVersion).toBe(1);
@@ -205,6 +213,22 @@ test("AGENTS.md: adds memory section on first run, is idempotent on subsequent r
   }
 });
 
+test("setup renders bin_path template variable in installed skills", async () => {
+  const targetRoot = await createTargetRepo("ah-setup-binpath-");
+
+  try {
+    await runSetupAndCapture(targetRoot, {});
+
+    const executorSkillPath = path.join(targetRoot, ".agents", "skills", "executor", "SKILL.md");
+    const executorSkill = await readFile(executorSkillPath, "utf8");
+
+    expect(executorSkill).not.toContain("{{ bin_path }}");
+    expect(executorSkill).toContain(".agent-harness/bin/ah-run-state");
+  } finally {
+    await rm(targetRoot, { force: true, recursive: true });
+  }
+});
+
 test("setup creates .agent-harness/memory directory and recreates it after deletion", async () => {
   const targetRoot = await createTargetRepo("ah-setup-memory-");
 
@@ -217,6 +241,106 @@ test("setup creates .agent-harness/memory directory and recreates it after delet
 
     await runSetupAndCapture(targetRoot, { overwrite: true });
     expect(await pathExists(path.join(targetRoot, ".agent-harness", "memory"))).toBe(true);
+  } finally {
+    await rm(targetRoot, { force: true, recursive: true });
+  }
+});
+
+test("memory-turn-counter plugin gracefully handles missing turn count file", async () => {
+  const targetRoot = await createTargetRepo("ah-turn-counter-");
+
+  try {
+    const installOutput = await runSetupAndCapture(targetRoot, {});
+
+    const tuiTarget = path.join(targetRoot, "tui.json");
+    const pluginTarget = path.join(targetRoot, ".opencode", "plugins", "ah-memory-turn-counter.js");
+    expect(await pathExists(tuiTarget)).toBe(true);
+    expect(await pathExists(pluginTarget)).toBe(true);
+    expect(installOutput).toContain("copied:");
+    expect(installOutput).toContain("tui.json");
+
+    const memoryDir = path.join(targetRoot, ".agent-harness", "memory");
+    expect(await pathExists(memoryDir)).toBe(true);
+
+    const { MemoryTurnCounter } = await import(path.join(targetRoot, ".opencode", "plugins", "ah-memory-turn-counter.js"));
+
+    const logs: unknown[] = [];
+    const mockClient = {
+      app: {
+        log: async ({ body }: { body: unknown }) => {
+          logs.push(body);
+        },
+      },
+    };
+
+    const { $ } = await import("bun");
+    const plugin = await MemoryTurnCounter({
+      client: mockClient as any,
+      $,
+      directory: targetRoot,
+      worktree: undefined,
+    });
+
+    const newSessionId = "nonexistent-session-12345";
+    const turnCountFile = path.join(memoryDir, `.turn_count_${newSessionId}`);
+    expect(await pathExists(turnCountFile)).toBe(false);
+
+    await plugin.event({
+      event: { type: "session.created", properties: { sessionID: newSessionId } },
+    });
+
+    const sessionLog = logs.find(
+      (l: any) => l.service === "memory-turn-counter" && l.message?.includes("started with turn count")
+    );
+    expect(sessionLog).toBeDefined();
+    expect((sessionLog as any).message).toContain("started with turn count 0");
+  } finally {
+    await rm(targetRoot, { force: true, recursive: true });
+  }
+});
+
+test("memory-turn-counter plugin creates memory directory if missing", async () => {
+  const targetRoot = await createTargetRepo("ah-turn-counter-missing-dir-");
+
+  try {
+    await runSetupAndCapture(targetRoot, {});
+
+    const pluginTarget = path.join(targetRoot, ".opencode", "plugins", "ah-memory-turn-counter.js");
+    const { MemoryTurnCounter } = await import(pluginTarget);
+
+    const logs: unknown[] = [];
+    const mockClient = {
+      app: {
+        log: async ({ body }: { body: unknown }) => {
+          logs.push(body);
+        },
+      },
+    };
+
+    const { $ } = await import("bun");
+    const plugin = await MemoryTurnCounter({
+      client: mockClient as any,
+      $,
+      directory: targetRoot,
+      worktree: undefined,
+    });
+
+    const memoryDir = path.join(targetRoot, ".agent-harness", "memory");
+    await rm(memoryDir, { force: true, recursive: true });
+    expect(await pathExists(memoryDir)).toBe(false);
+
+    const newSessionId = "test-session-67890";
+    await plugin.event({
+      event: { type: "session.created", properties: { sessionID: newSessionId } },
+    });
+
+    expect(await pathExists(memoryDir)).toBe(true);
+
+    const sessionLog = logs.find(
+      (l: any) => l.service === "memory-turn-counter" && l.message?.includes("started with turn count")
+    );
+    expect(sessionLog).toBeDefined();
+    expect((sessionLog as any).message).toContain("started with turn count 0");
   } finally {
     await rm(targetRoot, { force: true, recursive: true });
   }
