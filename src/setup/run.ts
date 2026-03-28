@@ -88,12 +88,16 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
 
   console.log(`${prefix}installing harness CLIs to ${paths.targetBinDir}...`);
   if (!options.dry) {
-    await mkdir(paths.targetBinDir, { recursive: true });
-    for (const cli of HARNESS_BIN_CLIS) {
-      const source = path.join(harnessBinDir, cli);
-      const dest = path.join(paths.targetBinDir, cli);
-      if (await pathExists(source)) {
-        await cp(source, dest, { preserveTimestamps: true });
+    if (harnessBinDir === paths.targetBinDir) {
+      console.log(`skip: harness CLIs already in place`);
+    } else {
+      await mkdir(paths.targetBinDir, { recursive: true });
+      for (const cli of HARNESS_BIN_CLIS) {
+        const source = path.join(harnessBinDir, cli);
+        const dest = path.join(paths.targetBinDir, cli);
+        if (await pathExists(source)) {
+          await cp(source, dest, { preserveTimestamps: true });
+        }
       }
     }
   }
@@ -265,6 +269,40 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
     await mkdir(paths.targetMemoryDir, { recursive: true });
     await mkdir(paths.targetAgentsDir, { recursive: true });
     await Bun.write(paths.metadataPath, `${JSON.stringify(metadata, null, 2)}\n`);
+  }
+
+  const isHarnessRepo = paths.targetRoot === paths.repoRoot;
+  const tuiSource = path.join(paths.repoRoot, "tui.json");
+  const tuiTarget = path.join(paths.targetRoot, "tui.json");
+  const pluginsSourceDir = path.join(paths.repoRoot, ".opencode", "plugins");
+  const pluginsTargetDir = path.join(paths.targetRoot, ".opencode", "plugins");
+  const pluginSource = path.join(pluginsSourceDir, "ah-memory-turn-counter.js");
+  const pluginTarget = path.join(pluginsTargetDir, "ah-memory-turn-counter.js");
+
+  if (isHarnessRepo) {
+    if (!options.dry) {
+      console.log("skip: opencode config (running inside harness repo)");
+    }
+  } else {
+    if (options.dry) {
+      if (await pathExists(tuiSource)) {
+        console.log(`Would copy ${tuiSource} to ${tuiTarget}`);
+      }
+      if (await pathExists(pluginSource)) {
+        console.log(`Would copy ${pluginSource} to ${pluginTarget}`);
+      }
+    } else {
+      if (await pathExists(tuiSource)) {
+        await mkdir(paths.targetRoot, { recursive: true });
+        await cp(tuiSource, tuiTarget);
+        console.log(`copied: ${tuiSource} → ${tuiTarget}`);
+      }
+      if (await pathExists(pluginSource)) {
+        await mkdir(pluginsTargetDir, { recursive: true });
+        await cp(pluginSource, pluginTarget);
+        console.log(`copied: ${pluginSource} → ${pluginTarget}`);
+      }
+    }
   }
 
   const mode = options.dry ? "Dry run complete" : "Done";
