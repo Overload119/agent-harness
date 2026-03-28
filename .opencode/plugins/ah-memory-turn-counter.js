@@ -8,20 +8,15 @@ export const MemoryTurnCounter = async ({ client, $, directory, worktree }) => {
 
   async function loadTurnCount(sessionId) {
     const sessionFile = getSessionStoragePath(sessionId);
-    try {
-      await $`mkdir -p "${baseDir}/.agent-harness/memory"`;
-      const content = await $`cat "${sessionFile}"`;
-      const data = JSON.parse(content.stdout.trim());
+    const content = await $`cat "${sessionFile}"`.nothrow().quiet();
+    const data = JSON.parse(content.stdout.trim());
       return data.count || 0;
-    } catch {
-      return 0;
-    }
   }
 
   async function saveTurnCount(sessionId, count) {
     const sessionFile = getSessionStoragePath(sessionId);
     await $`mkdir -p "${baseDir}/.agent-harness/memory"`;
-    await $`echo "${JSON.stringify({ sessionId, count })}" > "${sessionFile}"`;
+    await $`echo "${JSON.stringify({ sessionId, count })}" > "${sessionFile}"`
   }
 
   async function triggerConsolidate(sessionId) {
