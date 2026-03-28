@@ -10,7 +10,8 @@
 - This repo uses Bun for scripts; prefer Bun/Typescript and do not create Python helper scripts.
 - Use `rg` (ripgrep) for content searches instead of `grep`. The `timeout` command is not available everywhere and should not be used.
 
-<agent-harness>
+<!-- agent-harness-memory -->
+```agent-harness-memory
 ## Agent Harness Memory
 
 The agent harness uses plain Markdown files for memory storage under `.agent-harness/memory/`.
@@ -42,7 +43,8 @@ The agent harness uses plain Markdown files for memory storage under `.agent-har
 
 - Memory entries are auto-consolidated every 10 tool executions
 - Use `ah-compound` to add new entries to the appropriate category
-</agent-harness>
+```
+<!-- /agent-harness-memory -->
 
 ## Build And Visualizer Rules
 

@@ -17,8 +17,6 @@ Use this skill when:
 
 ## Memory Categories
 
-## Memory Categories
-
 **NEVER ask the user which category to use.** Read the category descriptions below and determine the correct category autonomously based on the topic.
 
 ### ARCHITECTURE.md - System Infrastructure

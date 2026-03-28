@@ -18,6 +18,7 @@ export function resolveSetupPaths(argv: string[]): SetupPaths {
   const targetDiagramsDir = repoHarnessSubdir(targetRoot, "diagrams");
   const targetDir = path.join(targetAgentsDir, "skills");
   const targetLogsDir = repoHarnessSubdir(targetRoot, "logs");
+  const targetMemoryDir = repoHarnessSubdir(targetRoot, "memory");
   const metadataPath = path.join(targetAgentsDir, "agent-harness-install.json");
 
   return {
@@ -29,6 +30,7 @@ export function resolveSetupPaths(argv: string[]): SetupPaths {
     targetDiagramsDir,
     targetDir,
     targetLogsDir,
+    targetMemoryDir,
     targetRoot,
   };
 }

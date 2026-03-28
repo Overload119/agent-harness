@@ -1,5 +1,5 @@
 export const MemoryTurnCounter = async ({ client, $, directory, worktree }) => {
-  const CONSOLIDATE_THRESHOLD = 10;
+  const CONSOLIDATE_THRESHOLD = 6;
 
   function getSessionStoragePath(sessionId) {
     return `.agent-harness/memory/.turn_count_${sessionId}`;
@@ -34,48 +34,51 @@ export const MemoryTurnCounter = async ({ client, $, directory, worktree }) => {
   let currentCount = 0;
 
   return {
-    "session.created": async (input, output) => {
-      const event = input.event || {};
-      currentSessionId = event.sessionId || "default";
-      currentCount = await loadTurnCount(currentSessionId);
-      await client.app.log({
-        body: {
-          service: "memory-turn-counter",
-          level: "info",
-          message: `Session ${currentSessionId} started with turn count ${currentCount}`,
-        },
-      });
-    },
-
-    "tool.execute.after": async (input, output) => {
-      if (!currentSessionId) {
-        currentSessionId = "default";
+    event: async ({ event }) => {
+      if (event.type === "session.created") {
+        currentSessionId = event.properties?.sessionID || "default";
         currentCount = await loadTurnCount(currentSessionId);
-      }
-
-      currentCount++;
-
-      await saveTurnCount(currentSessionId, currentCount);
-
-      await client.app.log({
-        body: {
-          service: "memory-turn-counter",
-          level: "debug",
-          message: `Tool executed: ${input.tool}, turns: ${currentCount}`,
-        },
-      });
-
-      if (currentCount >= CONSOLIDATE_THRESHOLD) {
         await client.app.log({
           body: {
             service: "memory-turn-counter",
             level: "info",
-            message: `Threshold reached (${currentCount}), triggering consolidation`,
+            message: `Session ${currentSessionId} started with turn count ${currentCount}`,
           },
         });
-        await triggerConsolidate(currentSessionId);
-        currentCount = 0;
+      }
+    },
+
+    "chat.message": async (input) => {
+      if (!currentSessionId) {
+        currentSessionId = input.sessionID || "default";
+        currentCount = await loadTurnCount(currentSessionId);
+      }
+
+      if (input.message?.role === "user") {
+        currentCount++;
+
         await saveTurnCount(currentSessionId, currentCount);
+
+        await client.app.log({
+          body: {
+            service: "memory-turn-counter",
+            level: "debug",
+            message: `User message received, messages: ${currentCount}`,
+          },
+        });
+
+        if (currentCount >= CONSOLIDATE_THRESHOLD) {
+          await client.app.log({
+            body: {
+              service: "memory-turn-counter",
+              level: "info",
+              message: `Threshold reached (${currentCount}), triggering consolidation`,
+            },
+          });
+          await triggerConsolidate(currentSessionId);
+          currentCount = 0;
+          await saveTurnCount(currentSessionId, currentCount);
+        }
       }
     },
   };

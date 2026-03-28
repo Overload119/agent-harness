@@ -134,6 +134,7 @@ test("setup installs shipped skills, writes managed metadata, creates harness di
     expect(gitignoreLines.filter((line) => line === ".agent-harness/")).toHaveLength(1);
     expect(await pathExists(path.join(installRoot, ".agent-harness", "diagrams"))).toBe(true);
     expect(await pathExists(path.join(installRoot, ".agent-harness", "logs"))).toBe(true);
+    expect(await pathExists(path.join(installRoot, ".agent-harness", "memory"))).toBe(true);
     expect(mermaidSkill).toContain(".agent-harness/diagrams/");
     expect(mermaidSkill).toContain("beautiful-mermaid");
     expect(mermaidSkill).toContain("renderMermaidSVG");
@@ -161,5 +162,62 @@ test("setup installs shipped skills, writes managed metadata, creates harness di
   } finally {
     await rm(dryRunRoot, { force: true, recursive: true });
     await rm(installRoot, { force: true, recursive: true });
+  }
+});
+
+test("AGENTS.md: adds memory section on first run, is idempotent on subsequent runs", async () => {
+  const targetRoot = await createTargetRepo("ah-setup-agents-");
+
+  try {
+    const agentsPath = path.join(targetRoot, "AGENTS.md");
+    const initialContent = `## Skill Sources And Installs
+
+- Some existing content
+
+## Build And Visualizer Rules
+
+- Some other content
+`;
+    await writeFile(agentsPath, initialContent, "utf8");
+
+    const firstRun = await runSetupAndCapture(targetRoot, {});
+    expect(firstRun).toContain("Updated AGENTS.md: added agent-harness section");
+
+    const afterFirstRun = await readFile(agentsPath, "utf8");
+    expect(afterFirstRun).toContain("<!-- agent-harness-memory -->");
+    expect(afterFirstRun).toContain("<!-- /agent-harness-memory -->");
+    expect(afterFirstRun.match(/<!-- agent-harness-memory -->/g) || []).toHaveLength(1);
+
+    const secondRun = await runSetupAndCapture(targetRoot, {});
+    expect(secondRun).toContain("skip: agents (agent-harness section unchanged)");
+    expect(secondRun).not.toContain("Updated AGENTS.md");
+
+    const afterSecondRun = await readFile(agentsPath, "utf8");
+    expect(afterSecondRun.match(/<!-- agent-harness-memory -->/g) || []).toHaveLength(1);
+
+    const thirdRun = await runSetupAndCapture(targetRoot, {});
+    expect(thirdRun).toContain("skip: agents (agent-harness section unchanged)");
+
+    const afterThirdRun = await readFile(agentsPath, "utf8");
+    expect(afterThirdRun.match(/<!-- agent-harness-memory -->/g) || []).toHaveLength(1);
+  } finally {
+    await rm(targetRoot, { force: true, recursive: true });
+  }
+});
+
+test("setup creates .agent-harness/memory directory and recreates it after deletion", async () => {
+  const targetRoot = await createTargetRepo("ah-setup-memory-");
+
+  try {
+    await runSetupAndCapture(targetRoot, {});
+    expect(await pathExists(path.join(targetRoot, ".agent-harness", "memory"))).toBe(true);
+
+    await rm(path.join(targetRoot, ".agent-harness", "memory"), { force: true, recursive: true });
+    expect(await pathExists(path.join(targetRoot, ".agent-harness", "memory"))).toBe(false);
+
+    await runSetupAndCapture(targetRoot, { overwrite: true });
+    expect(await pathExists(path.join(targetRoot, ".agent-harness", "memory"))).toBe(true);
+  } finally {
+    await rm(targetRoot, { force: true, recursive: true });
   }
 });
