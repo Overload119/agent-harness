@@ -30,7 +30,6 @@ The agent harness uses plain Markdown files for memory storage under \`.agent-ha
 
 ### Commands
 
-- \`ah-memory search <query>\` - Search memory entries across categories
 - \`ah-memory consolidate\` - Validate and compact memory files
 - \`ah-memory consolidate --dry\` - Preview consolidation without writing
 

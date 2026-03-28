@@ -20,19 +20,6 @@ function createProgram(): Command {
     .description("Manage agent harness memory entries.")
     .enablePositionalOptions();
 
-  program
-    .command("search <query>")
-    .description("Search memory entries across categories.")
-    .action(async (query: string) => {
-      const { spawn: bunSpawn } = await import("node:child_process");
-      const proc = bunSpawn("rg", ["-n", query, MEMORY_DIR], {
-        cwd: process.cwd(),
-        stdout: "inherit",
-        stderr: "inherit",
-      });
-      await new Promise((resolve) => proc.on("close", resolve));
-    });
-
   const consolidateCmd = program
     .command("consolidate")
     .description("Consolidate memory files to remove duplicates and stale content.")
