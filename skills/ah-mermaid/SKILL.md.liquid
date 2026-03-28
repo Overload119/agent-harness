@@ -24,7 +24,10 @@ Behavior:
    - prefer a fenced ```mermaid block so the source is readable in markdown
 4. Create a browser-renderable artifact:
    - write HTML to `./.generated/diagrams/<slug>.html`
-   - render Mermaid to an SVG with `renderMermaidSVG` from `beautiful-mermaid`
+   - use the `render-mermaid.ts` script to render with beautiful-mermaid:
+     ```
+     bun .agents/skills/mermaid/scripts/render-mermaid.ts <source.md> <output.html> [title]
+     ```
    - inline the generated `<svg>` into the HTML instead of relying on client-side Mermaid bootstrapping
    - keep the HTML standalone so it can be opened directly with the system browser
    - if the source came from a plan, preserve the plan order and milestone names in the rendered diagram
@@ -33,6 +36,14 @@ Behavior:
 6. If the user wants a canvas-like editable diagram rather than Mermaid:
    - say Mermaid is the default harness-native path
    - mention that Excalidraw-style skills may be a better fit for freeform canvas editing
+
+**beautiful-mermaid API notes:**
+
+- Import: `import { renderMermaidSVG } from 'beautiful-mermaid'`
+- Mermaid source uses `\n` newlines as line separators (not semicolons)
+- Header line must be on its own line (e.g., `graph TD\n A --> B`, NOT `graph TD; A-->B;`)
+- Use bun to run rendering scripts (not node)
+- Options: `{ bg, fg, transparent, font }` for theming, e.g., `renderMermaidSVG(src, { bg: '#16213e', fg: '#a9b1d6' })`
 
 Diagram rules:
 
