@@ -31,16 +31,16 @@
     "plan": {
       "managed": true,
       "sourceSkill": "ah-plan",
-      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-plan",
+      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/stump-clarinet/skills/ah-plan",
       "targetPath": ".agents/skills/plan",
       "installedFiles": {
-        "SKILL.md": "1e226e0f76810df5eac6e8704bd67e9f10648df00cf07c63ac5f89279a11c55b"
+        "SKILL.md": "48a39836b64ddef26aca61e3be4c6dd8fab833e5e307a36a47d40e1737d84546"
       }
     },
     "prd": {
       "managed": true,
       "sourceSkill": "ah-prd",
-      "sourcePath": "/Users/amirsharif/Projects/agent-harness/foul-selenium/skills/ah-prd",
+      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/stump-clarinet/skills/ah-prd",
       "targetPath": ".agents/skills/prd",
       "installedFiles": {
         "SKILL.md": "ba6b2d13e7b9962ea25d4a3b71f250e6f225ad57c1243264771f7476a6e9e409"
@@ -79,13 +79,14 @@
       "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/stump-clarinet/skills/ah-mermaid",
       "targetPath": ".agents/skills/mermaid",
       "installedFiles": {
-        "SKILL.md": "ac5a37ef8c463ea072707257b49d958e723199c64d739548a726e6b6876b4105"
+        "scripts/render-mermaid.ts": "8d7395d26cfd09c4bd177c56b5e4050e44f0c843a4478ed965bd0a4ae458838c",
+        "SKILL.md": "eaa815aeb9639af40f89bd93a07865d8eb604a1417ab6194791fa1b6d002fa1f"
       }
     },
     "executor": {
       "managed": true,
       "sourceSkill": "ah-executor",
-      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/foul-selenium/skills/ah-executor",
+      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/stump-clarinet/skills/ah-executor",
       "targetPath": ".agents/skills/executor",
       "installedFiles": {
         "SKILL.md": "a119f08c46173dd45dac0306e363dd99afa12e72a9e6b4b52b7eacf631199b82"
@@ -98,13 +99,22 @@
       "targetPath": ".agents/skills/memory",
       "installedFiles": {
         "_memory-categories.md": "2e2969c0e7680f42069610e637f99b39b2674d2e7f3ff60eddf0b270b26e2b2c",
-        "SKILL.md": "fd52fe12ceee5f132b751c0058f8a29da0488824034d11843a4651e8ce8d3fed"
+        "SKILL.md": "d3768f43ff63c63b31e9d50999d797fc68a925fa377d429ade01cfea35b61dd0"
+      }
+    },
+    "inspire": {
+      "managed": true,
+      "sourceSkill": "ah-inspire",
+      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/stump-clarinet/skills/ah-inspire",
+      "targetPath": ".agents/skills/inspire",
+      "installedFiles": {
+        "SKILL.md": "7e35cc35de9e9f5106ee30f503e2cb1fcd237c811bb1c4292d34ee34944f9154"
       }
     }
   },
   "source": {
     "repoRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/stump-clarinet",
-    "commit": "4d855222d6274369a23e9a7f65c854a42ecad895"
+    "commit": "e70931863e0dc7a38b05241dc883488ad81ba9a8"
   },
   "targetRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/stump-clarinet"
 }

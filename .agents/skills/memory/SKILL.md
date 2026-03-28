@@ -5,6 +5,15 @@ description: Use when you need to recall past work, previous decisions, error so
 
 # ah-memory Skill
 
+## CLI Commands
+
+The `ah-memory` CLI is located at `.agent-harness/bin/ah-memory`:
+
+```bash
+ah-memory consolidate        # Validate and compact memory files
+ah-memory consolidate --dry   # Preview consolidation without writing
+```
+
 ## When to Activate
 
 Use this skill when:
