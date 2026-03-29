@@ -299,6 +299,44 @@ test("memory-turn-counter plugin gracefully handles missing turn count file", as
   }
 });
 
+test("setup installs skills successfully when run from harness repo directory", async () => {
+  const harnessRoot = await createTargetRepo("ah-setup-harness-");
+
+  try {
+    await withWorkingDirectory(harnessRoot, async () => {
+      await runSetup({}, ["bun", SETUP_SCRIPT]);
+    });
+
+    expect(await pathExists(path.join(harnessRoot, ".agent-harness", "memory"))).toBe(true);
+    expect(await pathExists(path.join(harnessRoot, ".agents", "skills", "plan", "SKILL.md"))).toBe(true);
+  } finally {
+    await rm(harnessRoot, { force: true, recursive: true });
+  }
+});
+
+test("setup works when run from any directory (not just the harness repo)", async () => {
+  const unrelatedDir = await createTargetRepo("ah-setup-any-dir-");
+
+  try {
+    const result = Bun.spawnSync({
+      cmd: ["bun", SETUP_SCRIPT, "--yes"],
+      cwd: unrelatedDir,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+
+    const stderr = Buffer.from(result.stderr).toString("utf8");
+    const stdout = Buffer.from(result.stdout).toString("utf8");
+
+    expect(result.exitCode).toBe(0);
+    expect(stdout + stderr).toContain("Installed");
+    expect(await pathExists(path.join(unrelatedDir, ".agent-harness", "memory"))).toBe(true);
+    expect(await pathExists(path.join(unrelatedDir, ".agents", "skills", "plan", "SKILL.md"))).toBe(true);
+  } finally {
+    await rm(unrelatedDir, { force: true, recursive: true });
+  }
+});
+
 test("memory-turn-counter plugin creates memory directory if missing", async () => {
   const targetRoot = await createTargetRepo("ah-turn-counter-missing-dir-");
 
@@ -332,6 +370,13 @@ test("memory-turn-counter plugin creates memory directory if missing", async () 
     const newSessionId = "test-session-67890";
     await plugin.event({
       event: { type: "session.created", properties: { sessionID: newSessionId } },
+    });
+
+    expect(await pathExists(memoryDir)).toBe(false);
+
+    await plugin["chat.message"]({
+      sessionID: newSessionId,
+      message: { role: "user", content: "hello" },
     });
 
     expect(await pathExists(memoryDir)).toBe(true);

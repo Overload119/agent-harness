@@ -3,7 +3,7 @@ import path from "node:path";
 import process from "node:process";
 import { Command } from "commander";
 
-import { TEMPLATE_VARIABLES } from "./constants";
+import { createTemplateVariables } from "./constants";
 import { pathExists } from "./fs";
 import { ensureGitignoreEntry } from "./gitignore";
 import { ensureAgentsMdEntry } from "./agents";
@@ -42,6 +42,7 @@ export async function runSetupCli(argv: string[]): Promise<void> {
 
 export async function runSetup(options: SetupOptions, argv: string[]): Promise<void> {
   const paths = resolveSetupPaths(argv);
+  const TEMPLATE_VARIABLES = await createTemplateVariables(paths.repoRoot);
 
   const rgCheck = Bun.spawnSync({ cmd: ["which", "rg"], stdout: "pipe", stderr: "ignore" });
   if (rgCheck.exitCode !== 0) {

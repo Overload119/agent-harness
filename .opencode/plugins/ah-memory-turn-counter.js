@@ -9,8 +9,12 @@ export const MemoryTurnCounter = async ({ client, $, directory, worktree }) => {
   async function loadTurnCount(sessionId) {
     const sessionFile = getSessionStoragePath(sessionId);
     const content = await $`cat "${sessionFile}"`.nothrow().quiet();
-    const data = JSON.parse(content.stdout.trim());
-      return data.count || 0;
+    const text = await content.text();
+    if (!text.trim()) {
+      return 0;
+    }
+    const data = JSON.parse(text.trim());
+    return data.count || 0;
   }
 
   async function saveTurnCount(sessionId, count) {
