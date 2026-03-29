@@ -72,3 +72,34 @@ Date: 2026-03-28
 - `skills/ah-plan/SKILL.md.liquid`
 - `.agents/skills/plan/` (generated output)
 - `bin/setup --help`
+
+---
+
+## Fix: bin/setup requires bun install before build
+Date: 2026-03-29
+
+### Why it matters
+- `bin/setup` runs `bun scripts/build.ts` to build harness CLIs
+- The build imports source files that depend on `commander`, `hono`, etc.
+- Without running `bun install` first, the build fails with "Could not resolve: commander"
+
+### Root cause
+- The install.sh clones the harness repo to a temp dir and runs bin/setup
+- bin/setup spawns `bun scripts/build.ts` but never runs `bun install`
+- Dependencies in package.json aren't installed before build is attempted
+
+### Fix
+- Added `bun install` call in `src/setup/run.ts` before building
+- Changed `install.sh` to use `/tmp/.agent-harness` as TMP_ROOT (not system temp)
+- On macOS, TMPDIR defaults to `/var/folders/...` which falls outside allowed `/tmp/.agent-harness/**`
+
+### Key files changed
+- `src/setup/run.ts:77-86` - added `bun install` before build
+- `install.sh:7` - changed `TMP_ROOT` to `/tmp/.agent-harness`
+- `install.sh:37` - added `mkdir -p "${TMP_ROOT}"` before mktemp
+
+### References
+- `src/setup/run.ts`
+- `install.sh`
+- `scripts/build.ts`
+- `opencode.json` (external_directory permission)
