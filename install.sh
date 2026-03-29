@@ -4,7 +4,7 @@ set -euo pipefail
 
 REPO_URL="${AGENT_HARNESS_REPO:-https://github.com/overload119/agent-harness.git}"
 REPO_REF="${AGENT_HARNESS_REF:-main}"
-TMP_ROOT="${AGENT_HARNESS_TMPDIR:-${TMPDIR:-/tmp}}"
+TMP_ROOT="${AGENT_HARNESS_TMPDIR:-/tmp/.agent-harness}"
 BUN_INSTALL_DIR="${BUN_INSTALL:-$HOME/.bun}"
 
 if ! command -v bun >/dev/null 2>&1; then
@@ -34,6 +34,7 @@ if ! command -v mktemp >/dev/null 2>&1; then
   exit 1
 fi
 
+mkdir -p "${TMP_ROOT}"
 HARNESS_DIR="$(mktemp -d "${TMP_ROOT%/}/agent-harness.XXXXXX")"
 
 cleanup() {

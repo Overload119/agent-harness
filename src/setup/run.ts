@@ -75,6 +75,16 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
 
   console.log(`${prefix}building harness CLIs...`);
   if (!options.dry) {
+    const installResult = Bun.spawnSync({
+      cmd: ["bun", "install"],
+      cwd: paths.repoRoot,
+      stdout: "inherit",
+      stderr: "inherit",
+    });
+    if (installResult.exitCode !== 0) {
+      console.error("Failed to install dependencies.");
+      process.exit(1);
+    }
     const buildResult = Bun.spawnSync({
       cmd: ["bun", "scripts/build.ts"],
       cwd: paths.repoRoot,
