@@ -3,12 +3,16 @@ import path from "node:path";
 import process from "node:process";
 import { Command } from "commander";
 import { Hono } from "hono";
+import { file } from "bun";
 
 import { homeHarnessRoot, homeHarnessSubdir, repoHarnessRoot } from "../harness/paths";
 import { installVisualizerConsoleMirroring } from "./logging";
 import { deletePrd, deleteRunState, loadVisualizerSnapshot } from "./prd-server";
-import { buildVisualizer } from "./build";
 import { clearVisualizerServerState, readVisualizerServerState, writeVisualizerServerState } from "./server-state";
+
+import builtMainJsPath from "./main.js" with { type: "file" };
+import builtIndexHtmlPath from "./index.html" with { type: "file" };
+import builtIndexCssPath from "./index.css" with { type: "file" };
 
 const VISUALIZER_ROUTE = "/__ah_vis__";
 const API_PRDS_ROUTE = `${VISUALIZER_ROUTE}/api/prds`;
@@ -27,7 +31,6 @@ type VisualizerServer = {
 };
 
 type VisualizerCliDeps = {
-  buildVisualizer(harnessRoot: string, buildDir: string): Promise<void>;
   fetch(input: string | URL, init?: RequestInit): Promise<Response>;
   installVisualizerConsoleMirroring(): Promise<string>;
   openUrl(url: string): Promise<void>;
@@ -35,7 +38,6 @@ type VisualizerCliDeps = {
 };
 
 const defaultCliDeps: VisualizerCliDeps = {
-  buildVisualizer,
   fetch: (input, init) => fetch(input, init),
   installVisualizerConsoleMirroring,
   openUrl: async (url) => {
@@ -152,7 +154,7 @@ async function runViewResponse(fileName: string): Promise<Response> {
   return fileResponse(runPath);
 }
 
-export function createVisualizerApp(buildDir: string, shutdown: () => void, scopeRoot: string): Hono {
+export function createVisualizerApp(shutdown: () => void, scopeRoot: string): Hono {
   const app = new Hono();
 
   app.get(HEALTH_ROUTE, (context) => {
@@ -202,13 +204,10 @@ export function createVisualizerApp(buildDir: string, shutdown: () => void, scop
     return runViewResponse(fileName);
   });
 
-  app.get(`${VISUALIZER_ROUTE}/`, async () => fileResponse(path.join(buildDir, "index.html")));
-  app.get(VISUALIZER_ROUTE, async () => fileResponse(path.join(buildDir, "index.html")));
-  app.get(`${VISUALIZER_ROUTE}/*`, async (context) => {
-    const routePath = decodeURIComponent(new URL(context.req.url).pathname);
-    const assetPath = routePath.slice(`${VISUALIZER_ROUTE}/`.length);
-    return fileResponse(path.join(buildDir, assetPath));
-  });
+  app.get(`${VISUALIZER_ROUTE}/`, async () => new Response(file(builtIndexHtmlPath), { headers: { "Content-Type": "text/html; charset=utf-8" } }));
+  app.get(`${VISUALIZER_ROUTE}/index.html`, async () => new Response(file(builtIndexHtmlPath), { headers: { "Content-Type": "text/html; charset=utf-8" } }));
+  app.get(`${VISUALIZER_ROUTE}/main.js`, async () => new Response(file(builtMainJsPath), { headers: { "Content-Type": "text/javascript; charset=utf-8" } }));
+  app.get(`${VISUALIZER_ROUTE}/index.css`, async () => new Response(file(builtIndexCssPath), { headers: { "Content-Type": "text/css; charset=utf-8" } }));
 
   app.notFound(() => responseForNotFound());
 
@@ -265,8 +264,6 @@ export async function runVisualizerCli(argv: string[], deps: VisualizerCliDeps =
 
   const options = program.opts<VisualizerOptions>();
   const requestedPort = parseRequestedPort(options.port);
-  const harnessRoot = harnessRootFromArgv(argv);
-  const buildDir = path.join(harnessRoot, ".generated", "visualizer");
   const scopeRoot = path.resolve(process.cwd());
 
   const existingUrl = await reuseExistingVisualizerIfHealthy(requestedPort, deps);
@@ -277,7 +274,6 @@ export async function runVisualizerCli(argv: string[], deps: VisualizerCliDeps =
   }
 
   const logPath = await deps.installVisualizerConsoleMirroring();
-  await deps.buildVisualizer(harnessRoot, buildDir);
 
   let serverStopped = false;
   let resolveShutdown!: () => void;
@@ -295,7 +291,7 @@ export async function runVisualizerCli(argv: string[], deps: VisualizerCliDeps =
     resolveShutdown();
   };
 
-  const app = createVisualizerApp(buildDir, shutdown, scopeRoot);
+  const app = createVisualizerApp(shutdown, scopeRoot);
 
   const server = deps.serve({
     port: requestedPort,

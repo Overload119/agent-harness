@@ -1,4 +1,4 @@
-import type { PrdCard } from "./cards";
+import type { PrdCard, RunCard } from "./cards";
 
 export type CardSummary = {
   done: number;
@@ -21,6 +21,15 @@ export const DEFAULT_VISIBILITY_FILTERS: VisibilityFilters = {
 };
 
 type WorkspaceEntry = {
+  workspacePath: string;
+};
+
+export type RunGroup = {
+  cards: PrdCard[];
+  id: string;
+  label: string;
+  runs: RunCard[];
+  summary: CardSummary;
   workspacePath: string;
 };
 
@@ -76,4 +85,50 @@ export function filterStatusMessage(filters: VisibilityFilters, counts: { visibl
   const hiddenCards = Math.max(0, counts.totalCards - counts.visibleCards);
 
   return `Default filters active: showing ${counts.visibleRuns}/${counts.totalRuns} runs and ${counts.visibleCards}/${counts.totalCards} PRDs with ${hiddenRuns} hidden run${hiddenRuns === 1 ? "" : "s"} and ${hiddenCards} hidden PRD${hiddenCards === 1 ? "" : "s"}.`;
+}
+
+function groupLabel(run: RunCard): string {
+  return run.project || run.workspacePath || "Unknown project";
+}
+
+export function groupRunsByWorkspace(runs: RunCard[], cards: PrdCard[]): RunGroup[] {
+  const groups = new Map<string, RunGroup>();
+
+  for (const run of runs) {
+    const groupId = run.workspacePath || `run:${run.fileName}`;
+    const existing = groups.get(groupId);
+
+    if (existing) {
+      existing.runs.push(run);
+      continue;
+    }
+
+    groups.set(groupId, {
+      cards: [],
+      id: groupId,
+      label: groupLabel(run),
+      runs: [run],
+      summary: emptySummary(),
+      workspacePath: run.workspacePath,
+    });
+  }
+
+  for (const card of cards) {
+    const groupId = card.workspacePath;
+    const existing = groups.get(groupId);
+
+    if (!existing) {
+      continue;
+    }
+
+    existing.cards.push(card);
+  }
+
+  return Array.from(groups.values())
+    .map((group) => ({
+      ...group,
+      runs: [...group.runs].sort((left, right) => right.lastTouchedAt - left.lastTouchedAt || left.fileName.localeCompare(right.fileName)),
+      summary: summarizeCards(group.cards),
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label) || left.workspacePath.localeCompare(right.workspacePath));
 }

@@ -4,10 +4,10 @@
     "commit": {
       "managed": true,
       "sourceSkill": "ah-commit",
-      "sourcePath": "/Users/amirsharif/Projects/agent-harness/skills/ah-commit",
+      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/chalk-ash/skills/ah-commit",
       "targetPath": ".agents/skills/commit",
       "installedFiles": {
-        "SKILL.md": "62488b7fe8a3a47c241ae370e2c783ba98cc5ba353e7f2954c4fce644b2d000b"
+        "SKILL.md": "8334a7c461469cfd63e028d96b4193194f08ed0546acfa876efbe54c98f1c3bb"
       }
     },
     "compound": {
@@ -76,11 +76,11 @@
     "mermaid": {
       "managed": true,
       "sourceSkill": "ah-mermaid",
-      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/stump-clarinet/skills/ah-mermaid",
+      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/chalk-ash/skills/ah-mermaid",
       "targetPath": ".agents/skills/mermaid",
       "installedFiles": {
         "scripts/render-mermaid.ts": "8d7395d26cfd09c4bd177c56b5e4050e44f0c843a4478ed965bd0a4ae458838c",
-        "SKILL.md": "eaa815aeb9639af40f89bd93a07865d8eb604a1417ab6194791fa1b6d002fa1f"
+        "SKILL.md": "b763c152a0d84ae2c65a690802f18536c9c7bb86aa06c16765b66c81ab4ea508"
       }
     },
     "executor": {
@@ -95,7 +95,7 @@
     "memory": {
       "managed": true,
       "sourceSkill": "ah-memory",
-      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/stump-clarinet/skills/ah-memory",
+      "sourcePath": "/Users/amirsharif/.superset/worktrees/agent-harness/chalk-ash/skills/ah-memory",
       "targetPath": ".agents/skills/memory",
       "installedFiles": {
         "_memory-categories.md": "2e2969c0e7680f42069610e637f99b39b2674d2e7f3ff60eddf0b270b26e2b2c",
@@ -113,8 +113,8 @@
     }
   },
   "source": {
-    "repoRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/stump-clarinet",
-    "commit": "e70931863e0dc7a38b05241dc883488ad81ba9a8"
+    "repoRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/chalk-ash",
+    "commit": "3ea753104526b50012d2252a275d91866b8cf8dc"
   },
-  "targetRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/stump-clarinet"
+  "targetRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/chalk-ash"
 }
