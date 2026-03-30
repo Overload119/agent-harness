@@ -103,3 +103,59 @@ Date: 2026-03-29
 - `install.sh`
 - `scripts/build.ts`
 - `opencode.json` (external_directory permission)
+
+---
+
+## OpenCode commands architecture: internal vs shipped distinction
+Date: 2026-03-30
+
+### Why it matters
+- OpenCode commands need different treatment: some are for harness internal use, others are shipped to end-user repos
+- Using a prefix convention (like skills) was tried but caused confusion
+- The harness itself needs its own `.opencode/commands/` that is NOT shipped to targets
+
+### Solution: Separate source directories
+- `src/opencode/commands/` - user-facing commands shipped to targets during setup
+- `src/harness/commands/` - source of truth for internal harness commands (like do-later.md)
+- `.opencode/commands/` in harness - NOT shipped; managed like skills, restored on setup --overwrite
+
+### Key files
+- `src/setup/run.ts:295-396` - handles both internal (managed) and shipped commands
+- `src/setup/types.ts` - `CommandInstallRecord` type for managed commands
+- `src/harness/commands/do-later.md` - internal command source
+- `src/opencode/commands/deploy.md` - user-facing command
+
+### Pattern for adding new internal command
+1. Add to `src/harness/commands/<name>.md`
+2. Add command name to `commandNames` array in `src/setup/run.ts`
+3. Run `bin/setup --overwrite --yes` to restore
+
+### Pattern for adding new shipped command
+1. Add to `src/opencode/commands/<name>.md`
+2. Automatically shipped to targets on setup
+
+### Key insight
+- User-facing commands: no prefix needed, shipped via `src/opencode/commands/`
+- Internal commands: managed via `commandNames` array and `CommandInstallRecord` metadata
+
+---
+
+## PR workflow lessons
+Date: 2026-03-30
+
+### Why it matters
+- Merging main into feature branch and force-pushing causes commit history rewrite
+- bin/setup is auto-generated from source - always rebuild before merging
+
+### Learned constraints
+- When PR has merge conflicts, hard reset to origin/main and re-apply essential changes cleanly
+- Always rebuild bin/setup after hard reset: `bun scripts/build.ts`
+- After merging main, rebuild and run tests before force-pushing
+
+### Avoid next time
+- Don't try to keep multiple commits through a merge - just hard reset and do one clean commit
+- Don't merge main into a feature branch if the feature is ready - just force push
+
+### References
+- `bin/setup` - minified, auto-generated
+- `scripts/build.ts` - builds all harness CLIs

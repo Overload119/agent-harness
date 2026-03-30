@@ -1,4 +1,4 @@
-import { mkdir, rm, cp } from "node:fs/promises";
+import { mkdir, rm, cp, readdir } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { Command } from "commander";
@@ -289,10 +289,69 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
   const pluginsTargetDir = path.join(paths.targetRoot, ".opencode", "plugins");
   const pluginSource = path.join(pluginsSourceDir, "ah-memory-turn-counter.js");
   const pluginTarget = path.join(pluginsTargetDir, "ah-memory-turn-counter.js");
+  const commandsSourceDir = path.join(paths.repoRoot, "src", "opencode", "commands");
+  const commandsTargetDir = path.join(paths.targetRoot, ".opencode", "commands");
+  const harnessCommandsSourceDir = path.join(paths.repoRoot, "src", "harness", "commands");
+  const harnessCommandsTargetDir = path.join(paths.targetRoot, ".opencode", "commands");
+
+  const cmdPrefix = options.dry ? "Would " : "";
+  const commandNames = ["do-later"];
 
   if (isHarnessRepo) {
-    if (!options.dry) {
-      console.log("skip: opencode config (running inside harness repo)");
+    for (const commandName of commandNames) {
+      const sourceFile = path.join(harnessCommandsSourceDir, `${commandName}.md`);
+      const targetFile = path.join(harnessCommandsTargetDir, `${commandName}.md`);
+      const sourceExists = await pathExists(sourceFile);
+      const targetExists = await pathExists(targetFile);
+
+      const record = metadata.commands?.[commandName];
+      const managed = record?.managed === true;
+      const installedHash = record?.installedFiles?.["do-later.md"];
+
+      if (!sourceExists) continue;
+
+      const sourceHash = await Bun.hash(await Bun.file(sourceFile).text());
+
+      if (!targetExists) {
+        console.log(`${cmdPrefix}install: ${commandName} (internal command)`);
+        if (!options.dry) {
+          await mkdir(harnessCommandsTargetDir, { recursive: true });
+          await cp(sourceFile, targetFile);
+          metadata.commands = metadata.commands || {};
+          metadata.commands[commandName] = {
+            managed: true,
+            sourcePath: sourceFile,
+            targetPath: targetFile,
+            installedFiles: { "do-later.md": sourceHash },
+          };
+        }
+      } else if (options.overwrite && managed) {
+        console.log(`${cmdPrefix}update: ${commandName} (internal command)`);
+        if (!options.dry) {
+          await cp(sourceFile, targetFile);
+          metadata.commands = metadata.commands || {};
+          metadata.commands[commandName] = {
+            managed: true,
+            sourcePath: sourceFile,
+            targetPath: targetFile,
+            installedFiles: { "do-later.md": sourceHash },
+          };
+        }
+      } else if (managed && installedHash !== sourceHash) {
+        console.log(`${cmdPrefix}update: ${commandName} (upgrading to latest harness files)`);
+        if (!options.dry) {
+          await cp(sourceFile, targetFile);
+          metadata.commands = metadata.commands || {};
+          metadata.commands[commandName] = {
+            managed: true,
+            sourcePath: sourceFile,
+            targetPath: targetFile,
+            installedFiles: { "do-later.md": sourceHash },
+          };
+        }
+      } else if (managed) {
+        console.log(`${cmdPrefix}up to date: ${commandName} (internal command)`);
+      }
     }
   } else {
     if (options.dry) {
@@ -301,6 +360,13 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
       }
       if (await pathExists(pluginSource)) {
         console.log(`Would copy ${pluginSource} to ${pluginTarget}`);
+      }
+      if (await pathExists(commandsSourceDir)) {
+        const commandFiles = await readdir(commandsSourceDir, { withFileTypes: true });
+        const userCommands = commandFiles.filter((f) => f.isFile());
+        if (userCommands.length > 0) {
+          console.log(`Would copy commands: ${userCommands.map((f) => f.name).join(", ")}`);
+        }
       }
     } else {
       if (await pathExists(tuiSource)) {
@@ -312,6 +378,20 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
         await mkdir(pluginsTargetDir, { recursive: true });
         await cp(pluginSource, pluginTarget);
         console.log(`copied: ${pluginSource} → ${pluginTarget}`);
+      }
+      if (await pathExists(commandsSourceDir)) {
+        const commandFiles = await readdir(commandsSourceDir, { withFileTypes: true });
+        const userCommands = commandFiles.filter((f) => f.isFile());
+        if (userCommands.length > 0) {
+          console.log(`installing ${userCommands.length} command(s) to ${commandsTargetDir}...`);
+          await mkdir(commandsTargetDir, { recursive: true });
+          for (const file of userCommands) {
+            const src = path.join(commandsSourceDir, file.name);
+            const tgt = path.join(commandsTargetDir, file.name);
+            await cp(src, tgt);
+            console.log(`copied: ${src} → ${tgt}`);
+          }
+        }
       }
     }
   }

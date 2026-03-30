@@ -1,5 +1,12 @@
 export type Manifest = Record<string, string>;
 
+export type CommandInstallRecord = {
+  managed?: boolean;
+  sourcePath?: string;
+  targetPath?: string;
+  installedFiles?: Manifest;
+};
+
 export type SkillInstallRecord = {
   managed?: boolean;
   sourceSkill?: string;
@@ -11,6 +18,7 @@ export type SkillInstallRecord = {
 export type InstallMetadata = {
   formatVersion: number;
   skills: Record<string, SkillInstallRecord>;
+  commands: Record<string, CommandInstallRecord>;
   source?: {
     repoRoot: string;
     commit: string;
