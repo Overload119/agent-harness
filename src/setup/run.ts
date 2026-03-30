@@ -322,11 +322,11 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
       `skipped ${counts.skipped}.`,
   );
 
-  if (options.dry) {
-    if (options.overwrite) {
-      console.log("Run again without --dry to apply these managed upgrades and removals.");
-    } else {
-      console.log("Run with --dry --overwrite to preview managed upgrades, or --overwrite to apply them.");
-    }
+  if (options.overwrite) {
+    console.log("Run again without --dry to apply these managed upgrades and removals.");
+  } else if (options.dry) {
+    console.log("Run with --dry --overwrite to preview managed upgrades, or --overwrite to apply them.");
+  } else if (counts.skipped > 0) {
+    console.log("Run with --overwrite to restore skipped harness files.");
   }
 }

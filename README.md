@@ -16,6 +16,13 @@ Run this command in the repo you want to bootstrap with this harness. Same step 
 curl -fsSL https://raw.githubusercontent.com/overload119/agent-harness/main/install.sh | bash
 ```
 
+To pass arguments to `bin/setup`, use `bash -s --` before the flags:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/overload119/agent-harness/main/install.sh | bash -s -- --yes
+curl -fsSL https://raw.githubusercontent.com/overload119/agent-harness/main/install.sh | bash -s -- --yes --overwrite
+```
+
 The installer script clones the harness into a temporary directory, runs `bin/setup` in your current repo, and cleans up after itself.
 
 By default, `bin/setup` reads skills from the cloned harness repo, installs them into the repo in your current working directory, and bootstraps AgentKits Memory for OpenCode.
