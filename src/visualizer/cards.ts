@@ -19,6 +19,7 @@ export type RunDocument = {
   error?: string;
   exitCode?: number | null;
   iteration?: number;
+  maxIterations?: number;
   lastHeartbeatAt?: string;
   lastMessage?: string;
   logPath?: string;
@@ -53,13 +54,16 @@ export type PrdCard = {
 export type RunCard = {
   branchName: string;
   command: string;
+  completedAt: number;
   currentTaskId: string;
   error: string;
+  exitCode: number | null;
   fileName: string;
   isDemo: boolean;
   isStale: boolean;
   isTestFixture: boolean;
   iteration: number;
+  maxIterations: number | null;
   lastHeartbeatAt: number;
   lastMessage: string;
   lastTouchedAt: number;
@@ -193,17 +197,23 @@ export function runCardFromDocument(
   const explicitTouchedAt = Math.max(lastHeartbeatAt, completedAt, startedAt);
   const lastTouchedAt = explicitTouchedAt > 0 ? explicitTouchedAt : lastModified;
   const classification = classifyWorkspacePath(workspacePath);
+  const maxIterations = typeof document.maxIterations === "number" && Number.isInteger(document.maxIterations) && document.maxIterations >= 0
+    ? document.maxIterations
+    : null;
 
   return {
     branchName: document.branchName || "No branch name",
     command: document.command || "",
+    completedAt,
     currentTaskId: document.currentTaskId || "",
     error: document.error || "",
+    exitCode: typeof document.exitCode === "number" ? document.exitCode : null,
     fileName,
     isDemo: classification.isDemo,
     isStale: lastTouchedAt > 0 && lastTouchedAt < staleCutoff,
     isTestFixture: classification.isTestFixture,
     iteration: typeof document.iteration === "number" ? document.iteration : 0,
+    maxIterations,
     lastHeartbeatAt,
     lastMessage: document.lastMessage || "",
     lastTouchedAt,
@@ -216,4 +226,12 @@ export function runCardFromDocument(
     status: document.status || "unknown",
     workspacePath,
   };
+}
+
+export function formatIterationProgress(run: Pick<RunCard, "iteration" | "maxIterations">): string {
+  if (typeof run.maxIterations === "number") {
+    return `${run.iteration}/${run.maxIterations}`;
+  }
+
+  return run.iteration > 0 ? String(run.iteration) : "-";
 }
