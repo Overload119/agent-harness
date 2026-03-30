@@ -89,6 +89,16 @@ Expanded Plan
 
 If the input is not a file, return the same structure directly in the response.
 
+## Persisting the Plan
+
+After producing the plan, write it to `.agent-harness/plans/<feature-name-kebab-case>.md`:
+
+1. Create `.agent-harness/plans/` if it does not exist.
+2. Derive the filename from the objective — use kebab-case, e.g. "add dark mode toggle" → `add-dark-mode-toggle.md`.
+3. Write the full plan to that file, preserving the `#o #a #d #p #l #r #v` markdown structure.
+4. Return the file path in your response so the user knows where the plan is stored.
+5. When presenting next-step options, "implement the plan" means the plan is already persisted and can be referenced by path.
+
 Example interaction:
 
 ```
@@ -141,6 +151,8 @@ Always end the response by asking what the user wants to do next, and present nu
 1. Create a PRD from this plan
 2. Make changes to this plan
 3. Improve this plan
+
+Always include the plan file path in your response, e.g. "Plan saved to `.agent-harness/plans/add-dark-mode-toggle.md`."
 
 You can also respond with shorthand codes to clarify items:
 - Use #q1, #q2, etc. to answer constraint discovery questions
