@@ -5,6 +5,14 @@
 - After modifying a core harness skill under `skills/`, rerun `bin/setup --overwrite` so managed installs pick up the latest changes.
 - When adding a new shipped skill, create it under `skills/`, prefix the directory with `ah-`, and preserve the install mapping convention (for example, `skills/ah-plan/` installs to `.agents/skills/plan/`) via the `bin/setup` command.
 
+## OpenCode Commands
+
+User-facing commands are in `src/opencode/commands/` and are ported to end-user repos during setup.
+
+Internal harness commands (not shipped) go in `.opencode/commands/` and are managed like skills.
+
+When running `bin/setup` in a target repo, commands from `src/opencode/commands/` are copied to `.opencode/commands/`.
+
 ## Repo Conventions
 
 - This repo uses Bun for scripts; prefer Bun/Typescript and do not create Python helper scripts.
@@ -40,7 +48,7 @@ The agent harness uses plain Markdown files for memory storage under `.agent-har
 
 ### Notes
 
-- Memory entries are auto-consolidated every 10 tool executions
+- Memory entries are auto-consolidated every 6 user messages via the memory-turn-counter plugin spawning an opencode process with the ah-compound skill
 - Use `ah-compound` to add new entries to the appropriate category
 ```
 <!-- /agent-harness-memory -->

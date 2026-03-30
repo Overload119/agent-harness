@@ -24,13 +24,30 @@ export const MemoryTurnCounter = async ({ client, $, directory, worktree }) => {
   }
 
   async function triggerConsolidate(sessionId) {
-    const consolidateMsg = JSON.stringify({
-      action: "consolidate",
-      sessionId,
-      triggeredAt: new Date().toISOString(),
+    const memoryDir = `${baseDir}/.agent-harness/memory`;
+    await $`mkdir -p "${memoryDir}"`;
+
+    const prompt = `Use the ah-compound skill to consolidate the memory files in ${memoryDir}/.
+
+Read all 6 category files in ${memoryDir}/:
+- ARCHITECTURE.md
+- BACKEND.md
+- FRONTEND.md
+- PRODUCT.md
+- BUSINESS.md
+- USER_PREFERENCES.md
+
+Remove duplicate entries, merge similar entries, remove stale content, and ensure each file stays under 500 lines. Work in the current directory.`;
+
+    await $`opencode run --yes -- "${prompt}"`.nothrow().quiet();
+
+    await client.app.log({
+      body: {
+        service: "memory-turn-counter",
+        level: "info",
+        message: `Consolidation triggered for session ${sessionId}`,
+      },
     });
-    await $`mkdir -p "${baseDir}/.agent-harness/memory"`;
-    await $`echo "${consolidateMsg}" > "${baseDir}/.agent-harness/memory/.turn_count"`;
   }
 
   let currentSessionId = null;

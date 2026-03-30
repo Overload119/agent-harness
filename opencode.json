@@ -2,7 +2,8 @@
   "$schema": "https://opencode.ai/config.json",
   "permission": {
     "external_directory": {
-      "/tmp/.agent-harness/**": "allow"
+      "/tmp/.agent-harness/**": "allow",
+      "/private/tmp/.agent-harness/**": "allow"
     }
   },
   "mcp": {

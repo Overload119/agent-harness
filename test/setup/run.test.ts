@@ -1,7 +1,7 @@
 import { expect, mock, test } from "bun:test";
 import os from "node:os";
 import path from "node:path";
-import { access, mkdtemp, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 
 mock.module("../../src/setup/prompt", () => ({
   confirmInstall: async () => {},
@@ -387,6 +387,45 @@ test("memory-turn-counter plugin creates memory directory if missing", async () 
     expect(sessionLog).toBeDefined();
     expect((sessionLog as any).message).toContain("started with turn count 0");
   } finally {
+    await rm(targetRoot, { force: true, recursive: true });
+  }
+});
+
+test("setup copies user-facing commands from src/opencode/commands", async () => {
+  const targetRoot = await createTargetRepo("ah-commands-filter-");
+
+  const commandsSourceDir = path.join(REPO_ROOT, "src", "opencode", "commands");
+  const deployPath = path.join(commandsSourceDir, "deploy.md");
+
+  const deployContent = `---
+name: deploy
+description: Deploy the application
+---
+
+Deploy workflow here.
+`;
+
+  try {
+    await mkdir(commandsSourceDir, { recursive: true });
+    await writeFile(deployPath, deployContent);
+
+    const installOutput = await runSetupAndCapture(targetRoot, {});
+
+    const targetCommandsDir = path.join(targetRoot, ".opencode", "commands");
+    expect(await pathExists(targetCommandsDir)).toBe(true);
+
+    const files = await readdir(targetCommandsDir, { withFileTypes: true });
+    const fileNames = files.filter((f) => f.isFile()).map((f) => f.name);
+
+    expect(fileNames).toContain("deploy.md");
+    expect(installOutput).toContain("installing 1 command(s)");
+    expect(installOutput).toContain("copied:");
+    expect(installOutput).toContain(".opencode/commands/deploy.md");
+
+    const dryOutput = await runSetupAndCapture(targetRoot, { dry: true });
+    expect(dryOutput).toContain("Would copy commands: deploy.md");
+  } finally {
+    await rm(deployPath, { force: true });
     await rm(targetRoot, { force: true, recursive: true });
   }
 });
