@@ -26,7 +26,7 @@ Behavior:
    - write HTML to `./.generated/diagrams/<slug>.html`
    - use the `render-mermaid.ts` script to render with beautiful-mermaid:
      ```
-     bun skills/mermaid/scripts/render-mermaid.ts <source.md> <output.html> [title]
+     bun .agents/skills/mermaid/scripts/render-mermaid.ts <source.md> <output.html> [title]
      ```
    - inline the generated `<svg>` into the HTML instead of relying on client-side Mermaid bootstrapping
    - keep the HTML standalone so it can be opened directly with the system browser

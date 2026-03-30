@@ -25,6 +25,7 @@ Behavior:
 4. Draft the commits before taking action:
    - summarize each proposed commit in plain language
    - draft a concise conventional-commit title for each group that reflects why the grouped changes belong together
+   - **For bug-fix commits, use a before/after scenario format**: describe the specific failure mode as the user would experience it ("Before: <what was wrong and how it manifests>") followed by what changed ("After: <how it works now>"). This helps future readers understand the bug without reading the full diff.
    - note any missing verification that should happen before commit if it is relevant
 5. Ask for approval before staging or committing.
    - do not run `git add` or `git commit` unless the user explicitly approves
@@ -39,6 +40,7 @@ Commit rules:
 - Do not assume generated files should be committed unless the repo clearly tracks them.
 - Always write commit titles in Conventional Commit format such as `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `build:`, or `chore:`.
 - Keep the proposal actionable: commit groups, rationale, commit titles, file lists, and approval step.
+- After presenting a commit plan, ensure ALL modified and new files are accounted for in the plan - there should be no unstaged changes left behind after approval. If unrelated changes exist, either include them with an explanation or explicitly note they should be discarded.
 
 Output format:
 
