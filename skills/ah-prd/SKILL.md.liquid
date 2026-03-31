@@ -11,7 +11,7 @@ Behavior:
 
 1. First determine the input source:
    - a plan pasted directly in the prompt
-   - a file containing a plan
+   - a file containing a plan (read it first to get full context)
    - an existing PRD JSON that needs normalization or improvement
 2. Identify the project from the plan:
    - extract the project or feature name
@@ -47,9 +47,6 @@ Output format:
 - Write JSON to `./{{ path }}/prds/<feature-name-kebab-case>.json`
 - Return the JSON in the response as well
 - After presenting the PRD, always end by asking what the user wants to do next and give numbered options.
-- Those options must include starting the loop with `{{ bin_path }}/ah-loop` for the generated PRD.
-- Treat "start the loop" as running `{{ bin_path }}/ah-loop` against the generated PRD path.
-- Make clear that `ah-loop` continues until the entire PRD is complete, meaning every task has `passes: true`, unless it reaches the default limit of `--max-iterations 10` first or the user overrides that limit.
 
 Use this schema:
 
@@ -58,11 +55,12 @@ Use this schema:
   "project": "[Project Name]",
   "branchName": "ralph/[feature-name-kebab-case]",
   "description": "[Feature description from the plan objective]",
+  "planPath": "./{{ path }}/plans/<feature-name-kebab-case>.md",
   "tasks": [
     {
-      "id": "US-001",
-      "title": "[Story title]",
-      "description": "As a [user], I want [feature] so that [benefit]",
+      "id": "AH-001",
+      "title": "[Task title]",
+      "description": "[Task description]",
       "acceptanceCriteria": [
         "Criterion 1",
         "Criterion 2",
@@ -76,6 +74,8 @@ Use this schema:
   ]
 }
 ```
+
+If the input references an existing plan file, include its path as `planPath`.
 
 Task construction guidance:
 
@@ -91,9 +91,32 @@ If the input is already JSON, validate it against the schema above, fix obvious 
 
 Always end the response with numbered next-step options. Include these choices at a minimum:
 
-1. Start the loop now with `{{ bin_path }}/ah-loop <generated-prd-path>`
+1. Start the loop now with the `ah-prd` skill — it will load the loop workflow and execute each PRD task as a subagent
 2. Make changes to this PRD
 3. Stop here for now
 
-When offering the loop option, make clear that `{{ bin_path }}/ah-loop` is the command that starts execution of the PRD.
-Also make clear that `{{ bin_path }}/ah-loop` defaults to `--max-iterations 10`, keeps running until all PRD tasks are complete if it finishes within that limit, and can be started with a different `--max-iterations <number>` when needed.
+When offering the loop option, make clear that the `ah-prd` skill executes the loop natively using opencode subagents, streaming output in real-time, with checkpoints between tasks using the question tool. The loop continues until all PRD tasks have `passes: true`.
+
+## Loop Workflow
+
+When the user chooses to start the loop, you (the orchestrating agent) follow this workflow:
+
+1. **Init**: Read the PRD JSON. Call `{{ bin_path }}/ah-run-state update --phase initializing`. Determine the repo path from the PRD location.
+
+2. **Main loop**: While incomplete tasks exist:
+   a. Select next incomplete task via JQ: `jq '.tasks[] | select(.passes != true)' <prd-path>`
+   b. Call `{{ bin_path }}/ah-run-state update --phase running_task --current-task-id <id>`
+   c. Launch subagent via Task tool (`subagent_type="general"`) telling it to:
+      - Load the `ah-executor` skill
+      - Execute the assigned task
+      - Read the plan file at `planPath` for additional context
+      - Persist learnings in the task's `notes` field (things tried, patterns discovered, dead ends)
+      - When complete, end with `AH_EXECUTOR_RESULT: PASS` or `AH_EXECUTOR_RESULT: FAIL`
+   d. Parse subagent result for the sentinel
+   e. If PASS: update the PRD task to `passes: true` (use JQ or direct edit)
+   f. Call `{{ bin_path }}/ah-run-state update --message "Task <id> <passed|failed>"`
+   g. Ask user (via `question` tool): continue to next task, pause to review, or abort
+
+3. **Completion**: When all tasks pass, update run state to `completed`, summarize results, end with `AH_PRD_LOOP_RESULT: COMPLETE`
+
+4. **Persistent learning**: Subagents are encouraged to use the task's `notes` field to record what was tried. After a task completes, optionally distill notable findings using the `ah-compound` skill to persist durable lessons to `.agent-harness/memory/`.
