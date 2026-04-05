@@ -32,13 +32,11 @@ describe("loadVisualizerSnapshot", () => {
 
       try {
         await repoA.writeJson(path.join(".agent-harness", "prds", "alpha.json"), {
-          branchName: "feature/alpha",
           project: "Alpha Project",
           tasks: [{ id: "A-1", passes: true }, { id: "A-2", passes: false, title: "Ship alpha" }],
         });
 
         await repoB.writeJson(path.join(".agent-harness", "prds", "beta.json"), {
-          branchName: "feature/beta",
           project: "Beta Project",
           tasks: [{ id: "B-1", passes: false, title: "Finish beta" }],
         });
@@ -47,7 +45,6 @@ describe("loadVisualizerSnapshot", () => {
         await writeFile(unreadablePath, '{"project": "Unreadable JSON"}\n', "utf8");
         await chmod(unreadablePath, 0);
         await outsideRepo.writeJson(path.join(".agent-harness", "prds", "outside.json"), {
-          branchName: "feature/outside",
           project: "Outside Project",
           tasks: [{ id: "O-1", passes: false, title: "Outside task" }],
         });

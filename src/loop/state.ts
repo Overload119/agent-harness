@@ -8,7 +8,6 @@ import { homeHarnessSubdir } from "../harness/paths";
 const LOCK_STALE_MS = 15 * 60 * 1000;
 
 export type RunDocument = {
-  branchName: string;
   command: string;
   completedAt: string;
   currentTaskId: string;

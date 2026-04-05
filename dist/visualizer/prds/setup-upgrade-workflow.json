@@ -1,6 +1,5 @@
 {
   "project": "agent-harness",
-  "branchName": "ralph/setup-upgrade-workflow",
   "description": "Update setup so it installs into the bootstrapped repo, tracks installed skills, and supports safe upgrade previews.",
   "tasks": [
     {

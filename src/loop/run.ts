@@ -39,7 +39,6 @@ type PrdTask = {
 };
 
 type PrdDocument = {
-  branchName?: string;
   description?: string;
   project?: string;
   tasks?: PrdTask[];
@@ -198,7 +197,6 @@ export async function runLoopCli(argv: string[]): Promise<void> {
   const startedAt = nowIso();
 
   const state: RunDocument = {
-    branchName: document.branchName || "No branch name",
     command,
     completedAt: "",
     currentTaskId: "",

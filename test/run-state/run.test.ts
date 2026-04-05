@@ -8,7 +8,6 @@ import { withTempHomeFixture } from "../support/fixtures";
 
 function createRunState(overrides: Partial<RunDocument> = {}): RunDocument {
   return {
-    branchName: "ralph/testing",
     command: "bin/ah-loop .agent-harness/prds/testing.json",
     completedAt: "",
     currentTaskId: "US-001",

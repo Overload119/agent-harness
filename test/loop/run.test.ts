@@ -14,7 +14,6 @@ describe("runLoopCli", () => {
 
       try {
         const prdPath = await repo.writeJson(path.join(".agent-harness", "prds", "completed.json"), {
-          branchName: "ralph/completed-loop",
           project: "Completed Loop",
           tasks: [{ id: "US-001", passes: true }],
         });

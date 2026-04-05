@@ -5,7 +5,6 @@ import { DEFAULT_VISIBILITY_FILTERS, countWorkspaces, filterEntries, filterStatu
 
 function createCard(overrides: Partial<PrdCard> = {}): PrdCard {
   return {
-    branchName: "feature/example",
     description: "Example card",
     fileName: "example.json",
     invalidReason: "",
@@ -24,7 +23,6 @@ function createCard(overrides: Partial<PrdCard> = {}): PrdCard {
 
 function createRun(overrides: Partial<RunCard> = {}): RunCard {
   return {
-    branchName: "feature/example",
     command: "bun test",
     currentTaskId: "US-001",
     error: "",

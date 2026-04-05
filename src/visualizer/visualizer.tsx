@@ -476,7 +476,7 @@ export function Visualizer(): React.ReactElement {
                         <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", alignItems: "start" }}>
                           <Stack gap="6px">
                             <div style={{ ...eyebrowStyle, fontSize: "13px", letterSpacing: "0" }}>{run.fileName}</div>
-                            <div style={{ ...mutedTextStyle, fontSize: "14px" }}>{run.branchName}</div>
+                            <div style={{ fontSize: "22px", fontWeight: 700, lineHeight: 1.2 }}>{run.project}</div>
                           </Stack>
 
                           <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>

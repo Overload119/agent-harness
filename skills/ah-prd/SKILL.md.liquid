@@ -15,7 +15,6 @@ Behavior:
    - an existing PRD JSON that needs normalization or improvement
 2. Identify the project from the plan:
    - extract the project or feature name
-   - derive a short kebab-case branch name
    - summarize the feature in one sentence
 3. Normalize the work into task units:
    - each task should be executable by one agent
@@ -53,7 +52,6 @@ Use this schema:
 ```json
 {
   "project": "[Project Name]",
-  "branchName": "ralph/[feature-name-kebab-case]",
   "description": "[Feature description from the plan objective]",
   "planPath": "./{{ path }}/plans/<feature-name-kebab-case>.md",
   "tasks": [

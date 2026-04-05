@@ -6,13 +6,11 @@ export type PrdTask = {
 
 export type PrdDocument = {
   project?: string;
-  branchName?: string;
   description?: string;
   tasks?: PrdTask[];
 };
 
 export type RunDocument = {
-  branchName?: string;
   command?: string;
   completedAt?: string;
   currentTaskId?: string;
@@ -36,7 +34,6 @@ export type RunDocument = {
 };
 
 export type PrdCard = {
-  branchName: string;
   description: string;
   fileName: string;
   invalidReason: string;
@@ -52,7 +49,6 @@ export type PrdCard = {
 };
 
 export type RunCard = {
-  branchName: string;
   command: string;
   completedAt: number;
   currentTaskId: string;
@@ -148,7 +144,6 @@ export function cardFromDocument(fileName: string, lastModified: number, documen
           : "planned";
 
   return {
-    branchName: document.branchName || "No branch name",
     description: document.description || "No description",
     fileName,
     invalidReason: "",
@@ -168,7 +163,6 @@ export function invalidCard(fileName: string, lastModified: number, error: unkno
   const classification = classifyWorkspacePath(workspacePath);
 
   return {
-    branchName: "Invalid JSON",
     description: "This file could not be parsed as a PRD document.",
     fileName,
     invalidReason: error instanceof Error ? error.message : "Unknown parse error",
@@ -202,7 +196,6 @@ export function runCardFromDocument(
     : null;
 
   return {
-    branchName: document.branchName || "No branch name",
     command: document.command || "",
     completedAt,
     currentTaskId: document.currentTaskId || "",
