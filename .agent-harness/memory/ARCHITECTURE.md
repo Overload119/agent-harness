@@ -159,3 +159,37 @@ Date: 2026-03-30
 ### References
 - `bin/setup` - minified, auto-generated
 - `scripts/build.ts` - builds all harness CLIs
+
+---
+
+## Codex prompts should be generated from command sources
+Date: 2026-04-05
+
+### Why it matters
+- A separate shipped `src/codex/prompts/` tree drifted from the actual command sources and caused the wrong product behavior.
+- That design skipped `do-later` because it lives in `src/harness/commands/`, not in the copied prompt tree.
+- It also turned a fake `src/opencode/commands/deploy.md` fixture into accidental shipped product data.
+
+### Learned constraints
+- Codex prompt support in this repo should be derived from command sources, not maintained as a parallel prompt source tree.
+- Internal harness commands and shipped user commands have different exposure rules.
+- `do-later` is an explicit allowlisted internal command for Codex prompt generation when the harness repo itself is the target.
+- Real CLI validation matters: passing setup tests alone was not enough because the compiled `bin/setup` had to be rebuilt before dry-run behavior matched source.
+
+### Recommended patterns
+- Generate Codex prompts in setup from `src/opencode/commands/` plus an explicit allowlist from `src/harness/commands/`.
+- Strip OpenCode-only frontmatter like `name:` when rendering Codex prompts, but preserve Codex fields such as `description`, `argument-hint`, and `$ARGUMENTS`.
+- Keep setup tests fixture-driven with temporary command source directories instead of relying on tracked repo command files as fake product data.
+- After changing setup behavior, verify both with tests and real CLI dry runs such as `bun bin/setup --dry --yes`.
+
+### Avoid next time
+- Do not introduce a second shipped source tree for the same workflow unless drift is explicitly acceptable.
+- Do not rely on tracked repo fixtures like `deploy.md` unless they are intentionally part of the product surface.
+- Do not trust `bin/setup` behavior until `bun scripts/build.ts` has regenerated the compiled CLI.
+
+### References
+- `src/setup/commands.ts`
+- `src/setup/run.ts`
+- `src/harness/commands/do-later.md`
+- `test/setup/run.test.ts`
+- `bun bin/setup --dry --yes`

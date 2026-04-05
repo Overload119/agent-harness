@@ -114,7 +114,7 @@
   },
   "source": {
     "repoRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/polarized-coil",
-    "commit": "d0df91ed2cd8a2a88afd61267c408e928c8573d2"
+    "commit": "1352ff3bf34be183fcf3f4f8a95a0fb4d3f96e9f"
   },
   "targetRoot": "/Users/amirsharif/.superset/worktrees/agent-harness/polarized-coil"
 }
