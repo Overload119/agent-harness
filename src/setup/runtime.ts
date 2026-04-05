@@ -1,10 +1,10 @@
 import path from "node:path";
 import process from "node:process";
 
-import { repoHarnessSubdir } from "../harness/paths";
+import { homeHarnessRoot, repoHarnessSubdir } from "../harness/paths";
 import type { SetupPaths } from "./types";
 
-export function resolveSetupPaths(argv: string[]): SetupPaths {
+export function resolveSetupPaths(argv: string[], globalInstall = false): SetupPaths {
   const scriptPath = path.resolve(argv[1]);
   const scriptDir = path.dirname(scriptPath);
   let repoRoot = path.resolve(scriptDir, "..");
@@ -12,13 +12,13 @@ export function resolveSetupPaths(argv: string[]): SetupPaths {
     repoRoot = path.resolve(repoRoot, "..");
   }
   const sourceDir = path.join(repoRoot, "skills");
-  const targetRoot = path.resolve(process.cwd());
+  const targetRoot = globalInstall ? homeHarnessRoot() : path.resolve(process.cwd());
   const targetAgentsDir = path.join(targetRoot, ".agents");
-  const targetBinDir = repoHarnessSubdir(targetRoot, "bin");
-  const targetDiagramsDir = repoHarnessSubdir(targetRoot, "diagrams");
+  const targetBinDir = globalInstall ? path.join(targetRoot, "bin") : repoHarnessSubdir(targetRoot, "bin");
+  const targetDiagramsDir = globalInstall ? path.join(targetRoot, "diagrams") : repoHarnessSubdir(targetRoot, "diagrams");
   const targetDir = path.join(targetAgentsDir, "skills");
-  const targetLogsDir = repoHarnessSubdir(targetRoot, "logs");
-  const targetMemoryDir = repoHarnessSubdir(targetRoot, "memory");
+  const targetLogsDir = globalInstall ? path.join(targetRoot, "logs") : repoHarnessSubdir(targetRoot, "logs");
+  const targetMemoryDir = globalInstall ? path.join(targetRoot, "memory") : repoHarnessSubdir(targetRoot, "memory");
   const metadataPath = path.join(targetAgentsDir, "agent-harness-install.json");
 
   return {

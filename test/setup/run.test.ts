@@ -61,7 +61,10 @@ async function withWorkingDirectory<T>(cwd: string, run: () => Promise<T>): Prom
   }
 }
 
-async function runSetupAndCapture(targetRoot: string, options: { dry?: boolean; overwrite?: boolean }): Promise<string> {
+async function runSetupAndCapture(
+  targetRoot: string,
+  options: { dry?: boolean; global?: boolean; overwrite?: boolean; yes?: boolean },
+): Promise<string> {
   const lines: string[] = [];
   const originalLog = console.log;
   const originalError = console.error;
@@ -83,6 +86,31 @@ async function runSetupAndCapture(targetRoot: string, options: { dry?: boolean; 
   }
 
   return lines.join("\n");
+}
+
+async function withEnv<T>(env: Record<string, string | undefined>, run: () => Promise<T>): Promise<T> {
+  const previous: Record<string, string | undefined> = {};
+
+  for (const [key, value] of Object.entries(env)) {
+    previous[key] = process.env[key];
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+
+  try {
+    return await run();
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
 }
 
 test("setup installs shipped skills, writes managed metadata, creates harness directories, and restores managed skills with overwrite", async () => {
@@ -427,5 +455,29 @@ Deploy workflow here.
   } finally {
     await rm(deployPath, { force: true });
     await rm(targetRoot, { force: true, recursive: true });
+  }
+});
+
+test("setup --global installs into ~/.agent-harness without touching the current repo", async () => {
+  const fakeHome = await createTargetRepo("ah-setup-home-");
+  const cwd = await createTargetRepo("ah-setup-cwd-");
+
+  try {
+    const output = await withEnv({ HOME: fakeHome }, async () => {
+      return withWorkingDirectory(cwd, async () => {
+        return runSetupAndCapture(cwd, { global: true, yes: true });
+      });
+    });
+
+    const harnessRoot = path.join(fakeHome, ".agent-harness");
+    expect(output).toContain(harnessRoot);
+    expect(await pathExists(path.join(harnessRoot, ".agents", "agent-harness-install.json"))).toBe(true);
+    expect(await pathExists(path.join(harnessRoot, "bin"))).toBe(true);
+    expect(await pathExists(path.join(harnessRoot, "memory"))).toBe(true);
+    expect(await pathExists(path.join(cwd, ".agents"))).toBe(false);
+    expect(await pathExists(path.join(cwd, ".agent-harness"))).toBe(false);
+  } finally {
+    await rm(fakeHome, { force: true, recursive: true });
+    await rm(cwd, { force: true, recursive: true });
   }
 });

@@ -25,8 +25,9 @@ export function createProgram(): Command {
 
   program
     .name("setup")
-    .description("Install harness skills into the current repo.")
+    .description("Install harness skills into the current repo or a global harness root.")
     .option("--dry", "Preview install or upgrade actions without changing files")
+    .option("--global", "Install into ~/.agent-harness instead of the current repo")
     .option("--overwrite", "Replace harness-managed skills with the current harness copy")
     .option("--yes", "Skip confirmation prompt")
     .helpOption("-h, --help");
@@ -41,7 +42,7 @@ export async function runSetupCli(argv: string[]): Promise<void> {
 }
 
 export async function runSetup(options: SetupOptions, argv: string[]): Promise<void> {
-  const paths = resolveSetupPaths(argv);
+  const paths = resolveSetupPaths(argv, options.global === true);
   const TEMPLATE_VARIABLES = await createTemplateVariables(paths.repoRoot);
 
   const rgCheck = Bun.spawnSync({ cmd: ["which", "rg"], stdout: "pipe", stderr: "ignore" });
@@ -53,6 +54,10 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
   if (!(await pathExists(paths.sourceDir))) {
     console.error(`Source skills directory not found: ${paths.sourceDir}`);
     process.exit(1);
+  }
+
+  if (options.global && !(await pathExists(paths.targetRoot))) {
+    await mkdir(paths.targetRoot, { recursive: true });
   }
 
   if (!(await pathExists(paths.targetRoot))) {
@@ -71,6 +76,7 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
   }
 
   const prefix = options.dry ? "Would " : "";
+  const modeLabel = options.global ? "global harness root" : "current repo";
   const harnessBinDir = path.join(paths.repoRoot, ".agent-harness", "bin");
 
   console.log(`${prefix}building harness CLIs...`);
@@ -97,7 +103,7 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
     }
   }
 
-  console.log(`${prefix}installing harness CLIs to ${paths.targetBinDir}...`);
+  console.log(`${prefix}installing harness CLIs to ${paths.targetBinDir} (${modeLabel})...`);
   if (!options.dry) {
     if (harnessBinDir === paths.targetBinDir) {
       console.log(`skip: harness CLIs already in place`);

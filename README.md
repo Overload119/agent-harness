@@ -21,11 +21,14 @@ To pass arguments to `bin/setup`, use `bash -s --` before the flags:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/overload119/agent-harness/main/install.sh | bash -s -- --yes
 curl -fsSL https://raw.githubusercontent.com/overload119/agent-harness/main/install.sh | bash -s -- --yes --overwrite
+curl -fsSL https://raw.githubusercontent.com/overload119/agent-harness/main/install.sh | bash -s -- --yes --global
 ```
 
 The installer script clones the harness into a temporary directory, runs `bin/setup` in your current repo, and cleans up after itself.
 
 By default, `bin/setup` reads skills from the cloned harness repo, installs them into the repo in your current working directory, and bootstraps AgentKits Memory for OpenCode.
+
+Use `--global` to install into `~/.agent-harness` instead of the current repo.
 
 Before it makes changes, `bin/setup` prompts for confirmation and shows the current repo path it will install into.
 

@@ -28,6 +28,7 @@ export type InstallMetadata = {
 
 export type SetupOptions = {
   dry?: boolean;
+  global?: boolean;
   overwrite?: boolean;
   yes?: boolean;
 };
