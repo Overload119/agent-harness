@@ -33,12 +33,19 @@ export type SetupOptions = {
   yes?: boolean;
 };
 
+export type SetupSourceOverrides = {
+  commandsSourceDir?: string;
+  harnessCommandsSourceDir?: string;
+  includeInternalCodexCommands?: boolean;
+};
+
 export type SetupPaths = {
   metadataPath: string;
   repoRoot: string;
   sourceDir: string;
   targetAgentsDir: string;
   targetBinDir: string;
+  targetCodexPromptsDir: string;
   targetDiagramsDir: string;
   targetDir: string;
   targetLogsDir: string;

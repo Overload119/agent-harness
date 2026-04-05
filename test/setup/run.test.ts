@@ -2,6 +2,7 @@ import { expect, mock, test } from "bun:test";
 import os from "node:os";
 import path from "node:path";
 import { access, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import type { SetupSourceOverrides } from "../../src/setup/types";
 
 mock.module("../../src/setup/prompt", () => ({
   confirmInstall: async () => {},
@@ -50,6 +51,25 @@ async function shippedSkillNames(): Promise<string[]> {
   return names.sort((left, right) => left.localeCompare(right));
 }
 
+async function createCommandSourceDir(
+  prefix: string,
+  files: Record<string, string>,
+): Promise<{ root: string; dir: string; names: string[] }> {
+  const root = await createTargetRepo(prefix);
+  const dir = path.join(root, "commands");
+  await mkdir(dir, { recursive: true });
+
+  for (const [name, content] of Object.entries(files)) {
+    await writeFile(path.join(dir, name), content, "utf8");
+  }
+
+  return {
+    root,
+    dir,
+    names: Object.keys(files).sort((left, right) => left.localeCompare(right)),
+  };
+}
+
 async function withWorkingDirectory<T>(cwd: string, run: () => Promise<T>): Promise<T> {
   const previousCwd = process.cwd();
   process.chdir(cwd);
@@ -64,6 +84,7 @@ async function withWorkingDirectory<T>(cwd: string, run: () => Promise<T>): Prom
 async function runSetupAndCapture(
   targetRoot: string,
   options: { dry?: boolean; global?: boolean; overwrite?: boolean; yes?: boolean },
+  sourceOverrides: SetupSourceOverrides = {},
 ): Promise<string> {
   const lines: string[] = [];
   const originalLog = console.log;
@@ -78,7 +99,7 @@ async function runSetupAndCapture(
 
   try {
     await withWorkingDirectory(targetRoot, async () => {
-      await runSetup(options, ["bun", SETUP_SCRIPT]);
+      await runSetup(options, ["bun", SETUP_SCRIPT], sourceOverrides);
     });
   } finally {
     console.log = originalLog;
@@ -175,6 +196,9 @@ test("setup installs shipped skills, writes managed metadata, creates harness di
     expect(mermaidSkill).toContain("beautiful-mermaid");
     expect(mermaidSkill).toContain("renderMermaidSVG");
     expect(mermaidSkill).toContain("plan flow");
+    expect(verifySkill).toContain("how can I verify this?");
+    expect(verifySkill).toContain("how should I test this?");
+    expect(verifySkill).toContain("Verified summary");
     expect(verifySkill).toContain("Visual proof");
     expect(verifySkill).toContain("exact local file path");
 
@@ -421,39 +445,100 @@ test("memory-turn-counter plugin creates memory directory if missing", async () 
 
 test("setup copies user-facing commands from src/opencode/commands", async () => {
   const targetRoot = await createTargetRepo("ah-commands-filter-");
-
-  const commandsSourceDir = path.join(REPO_ROOT, "src", "opencode", "commands");
-  const deployPath = path.join(commandsSourceDir, "deploy.md");
-
-  const deployContent = `---
+  const commandSource = await createCommandSourceDir("ah-command-source-", {
+    "deploy.md": `---
 name: deploy
 description: Deploy the application
 ---
 
 Deploy workflow here.
-`;
+`,
+  });
 
   try {
-    await mkdir(commandsSourceDir, { recursive: true });
-    await writeFile(deployPath, deployContent);
-
-    const installOutput = await runSetupAndCapture(targetRoot, {});
+    const installOutput = await runSetupAndCapture(targetRoot, {}, { commandsSourceDir: commandSource.dir });
 
     const targetCommandsDir = path.join(targetRoot, ".opencode", "commands");
     expect(await pathExists(targetCommandsDir)).toBe(true);
 
     const files = await readdir(targetCommandsDir, { withFileTypes: true });
-    const fileNames = files.filter((f) => f.isFile()).map((f) => f.name);
+    const fileNames = files.filter((f) => f.isFile()).map((f) => f.name).sort((left, right) => left.localeCompare(right));
 
-    expect(fileNames).toContain("deploy.md");
-    expect(installOutput).toContain("installing 1 command(s)");
+    expect(fileNames).toEqual(commandSource.names);
+    expect(installOutput).toContain(`installing ${commandSource.names.length} command(s)`);
     expect(installOutput).toContain("copied:");
     expect(installOutput).toContain(".opencode/commands/deploy.md");
 
-    const dryOutput = await runSetupAndCapture(targetRoot, { dry: true });
-    expect(dryOutput).toContain("Would copy commands: deploy.md");
+    const dryOutput = await runSetupAndCapture(targetRoot, { dry: true }, { commandsSourceDir: commandSource.dir });
+    expect(dryOutput).toContain(`Would copy commands: ${commandSource.names.join(", ")}`);
   } finally {
-    await rm(deployPath, { force: true });
+    await rm(targetRoot, { force: true, recursive: true });
+    await rm(commandSource.root, { force: true, recursive: true });
+  }
+});
+
+test("setup generates user-facing Codex prompts into the project directory", async () => {
+  const targetRoot = await createTargetRepo("ah-codex-prompts-");
+  const commandSource = await createCommandSourceDir("ah-codex-command-source-", {
+    "deploy.md": `---
+name: deploy
+description: Deploy the application
+argument-hint: ENV=<environment>
+---
+
+Deploy workflow here.
+
+$ARGUMENTS
+`,
+  });
+
+  try {
+    const installOutput = await runSetupAndCapture(targetRoot, {}, { commandsSourceDir: commandSource.dir });
+
+    const targetPromptsDir = path.join(targetRoot, ".codex", "prompts");
+    expect(await pathExists(targetPromptsDir)).toBe(true);
+
+    const files = await readdir(targetPromptsDir, { withFileTypes: true });
+    const fileNames = files.filter((f) => f.isFile()).map((f) => f.name).sort((left, right) => left.localeCompare(right));
+    const deployPrompt = await readFile(path.join(targetPromptsDir, "deploy.md"), "utf8");
+
+    expect(fileNames).toEqual(commandSource.names);
+    expect(installOutput).toContain(`installing ${commandSource.names.length} Codex prompt(s)`);
+    expect(installOutput).toContain(".codex/prompts/deploy.md");
+    expect(deployPrompt).toContain("description: Deploy the application");
+    expect(deployPrompt).toContain("argument-hint: ENV=<environment>");
+    expect(deployPrompt).toContain("$ARGUMENTS");
+    expect(deployPrompt).not.toContain("name: deploy");
+
+    const dryOutput = await runSetupAndCapture(targetRoot, { dry: true }, { commandsSourceDir: commandSource.dir });
+    expect(dryOutput).toContain(`Would generate Codex prompts: ${commandSource.names.join(", ")} to `);
+    expect(dryOutput).toContain(".codex/prompts");
+  } finally {
+    await rm(targetRoot, { force: true, recursive: true });
+    await rm(commandSource.root, { force: true, recursive: true });
+  }
+});
+
+test("setup can generate an internal do-later Codex prompt when that command is included", async () => {
+  const targetRoot = await createTargetRepo("ah-codex-do-later-");
+
+  try {
+    const installOutput = await runSetupAndCapture(
+      targetRoot,
+      {},
+      {
+        includeInternalCodexCommands: true,
+      },
+    );
+
+    const targetPromptsDir = path.join(targetRoot, ".codex", "prompts");
+    const doLaterPrompt = await readFile(path.join(targetPromptsDir, "do-later.md"), "utf8");
+
+    expect(installOutput).toContain(".codex/prompts/do-later.md");
+    expect(doLaterPrompt).toContain("description: Continue working on the current task with todo tracking");
+    expect(doLaterPrompt).toContain("$ARGUMENTS");
+    expect(doLaterPrompt).not.toContain("name: do-later");
+  } finally {
     await rm(targetRoot, { force: true, recursive: true });
   }
 });
@@ -461,11 +546,20 @@ Deploy workflow here.
 test("setup --global installs into ~/.agent-harness without touching the current repo", async () => {
   const fakeHome = await createTargetRepo("ah-setup-home-");
   const cwd = await createTargetRepo("ah-setup-cwd-");
+  const commandSource = await createCommandSourceDir("ah-global-command-source-", {
+    "deploy.md": `---
+name: deploy
+description: Deploy the application
+---
+
+Deploy workflow here.
+`,
+  });
 
   try {
     const output = await withEnv({ HOME: fakeHome }, async () => {
       return withWorkingDirectory(cwd, async () => {
-        return runSetupAndCapture(cwd, { global: true, yes: true });
+        return runSetupAndCapture(cwd, { global: true, yes: true }, { commandsSourceDir: commandSource.dir });
       });
     });
 
@@ -474,10 +568,19 @@ test("setup --global installs into ~/.agent-harness without touching the current
     expect(await pathExists(path.join(harnessRoot, ".agents", "agent-harness-install.json"))).toBe(true);
     expect(await pathExists(path.join(harnessRoot, "bin"))).toBe(true);
     expect(await pathExists(path.join(harnessRoot, "memory"))).toBe(true);
+    const codexPromptsDir = path.join(fakeHome, ".codex", "prompts");
+    expect(await pathExists(codexPromptsDir)).toBe(true);
+    const codexPromptFiles = (await readdir(codexPromptsDir, { withFileTypes: true }))
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name)
+      .sort((left, right) => left.localeCompare(right));
+    expect(codexPromptFiles).toEqual(commandSource.names);
     expect(await pathExists(path.join(cwd, ".agents"))).toBe(false);
     expect(await pathExists(path.join(cwd, ".agent-harness"))).toBe(false);
+    expect(await pathExists(path.join(cwd, ".codex"))).toBe(false);
   } finally {
     await rm(fakeHome, { force: true, recursive: true });
     await rm(cwd, { force: true, recursive: true });
+    await rm(commandSource.root, { force: true, recursive: true });
   }
 });

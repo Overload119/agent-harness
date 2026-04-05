@@ -1,4 +1,5 @@
 import path from "node:path";
+import os from "node:os";
 import process from "node:process";
 
 import { homeHarnessRoot, repoHarnessSubdir } from "../harness/paths";
@@ -19,6 +20,10 @@ export function resolveSetupPaths(argv: string[], globalInstall = false): SetupP
   const targetDir = path.join(targetAgentsDir, "skills");
   const targetLogsDir = globalInstall ? path.join(targetRoot, "logs") : repoHarnessSubdir(targetRoot, "logs");
   const targetMemoryDir = globalInstall ? path.join(targetRoot, "memory") : repoHarnessSubdir(targetRoot, "memory");
+  const codexHomeRoot = path.join(process.env.HOME ?? process.env.USERPROFILE ?? os.homedir(), ".codex");
+  const targetCodexPromptsDir = globalInstall
+    ? path.join(codexHomeRoot, "prompts")
+    : path.join(targetRoot, ".codex", "prompts");
   const metadataPath = path.join(targetAgentsDir, "agent-harness-install.json");
 
   return {
@@ -31,6 +36,7 @@ export function resolveSetupPaths(argv: string[], globalInstall = false): SetupP
     targetDir,
     targetLogsDir,
     targetMemoryDir,
+    targetCodexPromptsDir,
     targetRoot,
   };
 }

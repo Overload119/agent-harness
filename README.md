@@ -26,7 +26,7 @@ curl -fsSL https://raw.githubusercontent.com/overload119/agent-harness/main/inst
 
 The installer script clones the harness into a temporary directory, runs `bin/setup` in your current repo, and cleans up after itself.
 
-By default, `bin/setup` reads skills from the cloned harness repo, installs them into the repo in your current working directory, and bootstraps AgentKits Memory for OpenCode.
+By default, `bin/setup` reads skills from the cloned harness repo, installs them into the repo in your current working directory, copies shipped OpenCode commands into `.opencode/commands/`, generates Codex prompts into `.codex/prompts/`, and bootstraps AgentKits Memory for OpenCode.
 
 Use `--global` to install into `~/.agent-harness` instead of the current repo.
 
@@ -42,7 +42,7 @@ Skills:
 - `/commit`: inspect the working tree and draft coherent commit proposals before staging anything
 - `/prd`: convert a plan into deterministic PRD JSON under `.agent-harness/prds`
 - `/review`: produce a structured implementation review
-- `/verify`: choose and report the right verification strategy, including browser checks when appropriate
+- `/verify`: choose and report the right verification strategy, including "how can I verify this?" style requests and browser checks when appropriate
 - `/compound`: persist reusable lessons under `.agent-harness/compounds`
 - `/mermaid`: turn plans or systems into Mermaid diagrams and render browser-openable HTML artifacts
 - `/executor`: execute one PRD task non-interactively for `ah-loop` inside a single repo checkout
@@ -57,6 +57,17 @@ Mermaid diagrams are now a first-class harness artifact:
 - the shipped `/mermaid` skill is the default way to create both
 
 This repo is intentionally recursive: `agent-harness` uses `agent-harness` to build `agent-harness`, so the generated `.agents/` install tree is checked in here as a real example of the shipped skills after rendering.
+
+## Commands And Prompts
+
+User-facing OpenCode commands live in `src/opencode/commands/` and are copied to `.opencode/commands/` during setup.
+
+Codex prompts are generated from command sources and written:
+
+- to `.codex/prompts/` during normal repo installs
+- to `~/.codex/prompts/` during `bin/setup --global`
+
+The generated prompt filenames match the command filenames. When setup runs in the harness repo itself, selected internal commands such as `do-later` also generate Codex prompts. Codex custom prompts are invoked as `/prompts:<name>`, for example `/prompts:do-later`, and Codex reloads prompt changes on a new session or restart.
 
 ## Testing
 
