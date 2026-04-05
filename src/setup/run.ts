@@ -4,6 +4,7 @@ import process from "node:process";
 import { Command } from "commander";
 
 import { createTemplateVariables } from "./constants";
+import { listCodexPromptSources, listTopLevelMarkdownFiles, renderCodexPromptFromCommand } from "./commands";
 import { pathExists } from "./fs";
 import { ensureGitignoreEntry } from "./gitignore";
 import { ensureAgentsMdEntry } from "./agents";
@@ -12,7 +13,7 @@ import { loadMetadata } from "./metadata";
 import { confirmInstall } from "./prompt";
 import { currentCommit, managedSkillTargetPath, resolveSetupPaths } from "./runtime";
 import { listSkillDirectories, skillNameFromSource, writeSkillDirectory } from "./skills";
-import type { SetupOptions } from "./types";
+import type { SetupOptions, SetupSourceOverrides } from "./types";
 
 const HARNESS_BIN_CLIS = ["ah-loop", "ah-run-state", "ah-vis"] as const;
 
@@ -41,7 +42,11 @@ export async function runSetupCli(argv: string[]): Promise<void> {
   await runSetup(program.opts<SetupOptions>(), argv);
 }
 
-export async function runSetup(options: SetupOptions, argv: string[]): Promise<void> {
+export async function runSetup(
+  options: SetupOptions,
+  argv: string[],
+  sourceOverrides: SetupSourceOverrides = {},
+): Promise<void> {
   const paths = resolveSetupPaths(argv, options.global === true);
   const TEMPLATE_VARIABLES = await createTemplateVariables(paths.repoRoot);
 
@@ -295,10 +300,13 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
   const pluginsTargetDir = path.join(paths.targetRoot, ".opencode", "plugins");
   const pluginSource = path.join(pluginsSourceDir, "ah-memory-turn-counter.js");
   const pluginTarget = path.join(pluginsTargetDir, "ah-memory-turn-counter.js");
-  const commandsSourceDir = path.join(paths.repoRoot, "src", "opencode", "commands");
+  const commandsSourceDir = sourceOverrides.commandsSourceDir ?? path.join(paths.repoRoot, "src", "opencode", "commands");
   const commandsTargetDir = path.join(paths.targetRoot, ".opencode", "commands");
-  const harnessCommandsSourceDir = path.join(paths.repoRoot, "src", "harness", "commands");
+  const codexPromptsTargetDir = paths.targetCodexPromptsDir;
+  const harnessCommandsSourceDir =
+    sourceOverrides.harnessCommandsSourceDir ?? path.join(paths.repoRoot, "src", "harness", "commands");
   const harnessCommandsTargetDir = path.join(paths.targetRoot, ".opencode", "commands");
+  const includeInternalCodexCommands = sourceOverrides.includeInternalCodexCommands ?? isHarnessRepo;
 
   const cmdPrefix = options.dry ? "Would " : "";
   const commandNames = ["do-later"];
@@ -359,46 +367,64 @@ export async function runSetup(options: SetupOptions, argv: string[]): Promise<v
         console.log(`${cmdPrefix}up to date: ${commandName} (internal command)`);
       }
     }
+  } else if (options.dry) {
+    if (await pathExists(tuiSource)) {
+      console.log(`Would copy ${tuiSource} to ${tuiTarget}`);
+    }
+    if (await pathExists(pluginSource)) {
+      console.log(`Would copy ${pluginSource} to ${pluginTarget}`);
+    }
+    if (await pathExists(commandsSourceDir)) {
+      const userCommands = await listTopLevelMarkdownFiles(commandsSourceDir);
+      if (userCommands.length > 0) {
+        console.log(`Would copy commands: ${userCommands.map((f) => f.fileName).join(", ")}`);
+      }
+    }
   } else {
-    if (options.dry) {
-      if (await pathExists(tuiSource)) {
-        console.log(`Would copy ${tuiSource} to ${tuiTarget}`);
-      }
-      if (await pathExists(pluginSource)) {
-        console.log(`Would copy ${pluginSource} to ${pluginTarget}`);
-      }
-      if (await pathExists(commandsSourceDir)) {
-        const commandFiles = await readdir(commandsSourceDir, { withFileTypes: true });
-        const userCommands = commandFiles.filter((f) => f.isFile());
-        if (userCommands.length > 0) {
-          console.log(`Would copy commands: ${userCommands.map((f) => f.name).join(", ")}`);
+    if (await pathExists(tuiSource)) {
+      await mkdir(paths.targetRoot, { recursive: true });
+      await cp(tuiSource, tuiTarget);
+      console.log(`copied: ${tuiSource} → ${tuiTarget}`);
+    }
+    if (await pathExists(pluginSource)) {
+      await mkdir(pluginsTargetDir, { recursive: true });
+      await cp(pluginSource, pluginTarget);
+      console.log(`copied: ${pluginSource} → ${pluginTarget}`);
+    }
+    if (await pathExists(commandsSourceDir)) {
+      const userCommands = await listTopLevelMarkdownFiles(commandsSourceDir);
+      if (userCommands.length > 0) {
+        console.log(`installing ${userCommands.length} command(s) to ${commandsTargetDir}...`);
+        await mkdir(commandsTargetDir, { recursive: true });
+        for (const file of userCommands) {
+          const src = file.sourcePath;
+          const tgt = path.join(commandsTargetDir, file.fileName);
+          await cp(src, tgt);
+          console.log(`copied: ${src} → ${tgt}`);
         }
       }
-    } else {
-      if (await pathExists(tuiSource)) {
-        await mkdir(paths.targetRoot, { recursive: true });
-        await cp(tuiSource, tuiTarget);
-        console.log(`copied: ${tuiSource} → ${tuiTarget}`);
-      }
-      if (await pathExists(pluginSource)) {
-        await mkdir(pluginsTargetDir, { recursive: true });
-        await cp(pluginSource, pluginTarget);
-        console.log(`copied: ${pluginSource} → ${pluginTarget}`);
-      }
-      if (await pathExists(commandsSourceDir)) {
-        const commandFiles = await readdir(commandsSourceDir, { withFileTypes: true });
-        const userCommands = commandFiles.filter((f) => f.isFile());
-        if (userCommands.length > 0) {
-          console.log(`installing ${userCommands.length} command(s) to ${commandsTargetDir}...`);
-          await mkdir(commandsTargetDir, { recursive: true });
-          for (const file of userCommands) {
-            const src = path.join(commandsSourceDir, file.name);
-            const tgt = path.join(commandsTargetDir, file.name);
-            await cp(src, tgt);
-            console.log(`copied: ${src} → ${tgt}`);
-          }
-        }
-      }
+    }
+  }
+
+  const codexPromptSources = await listCodexPromptSources({
+    userCommandsDir: commandsSourceDir,
+    internalCommandsDir: harnessCommandsSourceDir,
+    includeInternalCommands: includeInternalCodexCommands,
+  });
+
+  if (options.dry) {
+    if (codexPromptSources.length > 0) {
+      console.log(
+        `Would generate Codex prompts: ${codexPromptSources.map((f) => f.fileName).join(", ")} to ${codexPromptsTargetDir}`,
+      );
+    }
+  } else if (codexPromptSources.length > 0) {
+    console.log(`installing ${codexPromptSources.length} Codex prompt(s) to ${codexPromptsTargetDir}...`);
+    await mkdir(codexPromptsTargetDir, { recursive: true });
+    for (const source of codexPromptSources) {
+      const tgt = path.join(codexPromptsTargetDir, source.fileName);
+      await Bun.write(tgt, renderCodexPromptFromCommand(await Bun.file(source.sourcePath).text()));
+      console.log(`generated: ${source.sourcePath} → ${tgt}`);
     }
   }
 

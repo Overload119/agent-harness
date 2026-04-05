@@ -474,7 +474,7 @@ describe("visualizer deletion routes", () => {
       });
 
       expect(calls).toEqual({
-        build: 1,
+        build: 0,
         installLogs: 1,
         open: [freshUrl],
         serve: 1,

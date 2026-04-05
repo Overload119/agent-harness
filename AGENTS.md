@@ -9,9 +9,13 @@
 
 User-facing commands are in `src/opencode/commands/` and are ported to end-user repos during setup.
 
+Codex prompts are generated during setup from command sources and written to `.codex/prompts/` in normal repo installs, or `~/.codex/prompts/` during `--global` installs.
+
 Internal harness commands (not shipped) go in `.opencode/commands/` and are managed like skills.
 
 When running `bin/setup` in a target repo, commands from `src/opencode/commands/` are copied to `.opencode/commands/`.
+When running `bin/setup` in a target repo, Codex prompts are generated from shipped command sources.
+When running `bin/setup` in the harness repo itself, selected internal commands such as `do-later` also generate Codex prompts.
 
 ## Repo Conventions
 
@@ -48,7 +52,7 @@ The agent harness uses plain Markdown files for memory storage under `.agent-har
 
 ### Notes
 
-- Memory entries are auto-consolidated every 6 user messages via the memory-turn-counter plugin spawning an opencode process with the ah-compound skill
+- Memory entries are auto-consolidated every 10 tool executions
 - Use `ah-compound` to add new entries to the appropriate category
 ```
 <!-- /agent-harness-memory -->

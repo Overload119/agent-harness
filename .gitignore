@@ -13,5 +13,3 @@ node_modules/
 .agent-harness/memory/.turn_count_default*
 .agent-harness/
 !/.agent-harness/memory/
-
-.agents/
