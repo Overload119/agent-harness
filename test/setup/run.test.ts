@@ -6,6 +6,7 @@ import type { SetupSourceOverrides } from "../../src/setup/types";
 
 mock.module("../../src/setup/prompt", () => ({
   confirmInstall: async () => {},
+  confirmGlobalInstall: async () => {},
 }));
 
 const { runSetup } = await import("../../src/setup/run");
@@ -543,7 +544,7 @@ test("setup can generate an internal do-later Codex prompt when that command is 
   }
 });
 
-test("setup --global installs into ~/.agent-harness without touching the current repo", async () => {
+test("setup --global installs shared assets into ~/.agent-harness and skills into ~/.agents without touching the current repo", async () => {
   const fakeHome = await createTargetRepo("ah-setup-home-");
   const cwd = await createTargetRepo("ah-setup-cwd-");
   const commandSource = await createCommandSourceDir("ah-global-command-source-", {
@@ -564,10 +565,13 @@ Deploy workflow here.
     });
 
     const harnessRoot = path.join(fakeHome, ".agent-harness");
+    const agentsRoot = path.join(fakeHome, ".agents");
     expect(output).toContain(harnessRoot);
-    expect(await pathExists(path.join(harnessRoot, ".agents", "agent-harness-install.json"))).toBe(true);
+    expect(await pathExists(path.join(agentsRoot, "agent-harness-install.json"))).toBe(true);
+    expect(await pathExists(path.join(agentsRoot, "skills", "plan", "SKILL.md"))).toBe(true);
     expect(await pathExists(path.join(harnessRoot, "bin"))).toBe(true);
     expect(await pathExists(path.join(harnessRoot, "memory"))).toBe(true);
+    expect(await pathExists(path.join(harnessRoot, ".agents"))).toBe(false);
     const codexPromptsDir = path.join(fakeHome, ".codex", "prompts");
     expect(await pathExists(codexPromptsDir)).toBe(true);
     const codexPromptFiles = (await readdir(codexPromptsDir, { withFileTypes: true }))
@@ -582,5 +586,63 @@ Deploy workflow here.
     await rm(fakeHome, { force: true, recursive: true });
     await rm(cwd, { force: true, recursive: true });
     await rm(commandSource.root, { force: true, recursive: true });
+  }
+});
+
+test("setup --global migrates legacy ~/.agent-harness/.agents skills and metadata into ~/.agents", async () => {
+  const fakeHome = await createTargetRepo("ah-setup-legacy-home-");
+  const cwd = await createTargetRepo("ah-setup-legacy-cwd-");
+
+  try {
+    await withEnv({ HOME: fakeHome }, async () => {
+      const { createTemplateVariables } = await import("../../src/setup/constants");
+      const { renderedManifestFor } = await import("../../src/setup/manifest");
+      const { writeSkillDirectory } = await import("../../src/setup/skills");
+
+      const templateVariables = await createTemplateVariables(REPO_ROOT);
+      const sourceSkillDir = path.join(REPO_ROOT, "skills", "ah-plan");
+      const legacyAgentsDir = path.join(fakeHome, ".agent-harness", ".agents");
+      const legacySkillDir = path.join(legacyAgentsDir, "skills", "plan");
+      const legacyMetadataPath = path.join(legacyAgentsDir, "agent-harness-install.json");
+      const installedFiles = await renderedManifestFor(sourceSkillDir, templateVariables);
+
+      await writeSkillDirectory(sourceSkillDir, legacySkillDir, templateVariables);
+      await writeFile(
+        legacyMetadataPath,
+        `${JSON.stringify(
+          {
+            formatVersion: 1,
+            skills: {
+              plan: {
+                managed: true,
+                sourceSkill: "ah-plan",
+                sourcePath: sourceSkillDir,
+                targetPath: ".agents/skills/plan",
+                installedFiles,
+              },
+            },
+            targetRoot: path.join(fakeHome, ".agent-harness"),
+          },
+          null,
+          2,
+        )}\n`,
+        "utf8",
+      );
+
+      const output = await withWorkingDirectory(cwd, async () => {
+        return runSetupAndCapture(cwd, { global: true, yes: true });
+      });
+
+      expect(output).toContain("migrate: legacy global metadata");
+      expect(output).toContain("migrate: legacy global skill plan");
+      expect(await pathExists(path.join(fakeHome, ".agents", "agent-harness-install.json"))).toBe(true);
+      expect(await pathExists(path.join(fakeHome, ".agents", "skills", "plan", "SKILL.md"))).toBe(true);
+      expect(await pathExists(legacyMetadataPath)).toBe(false);
+      expect(await pathExists(legacySkillDir)).toBe(false);
+      expect(await pathExists(legacyAgentsDir)).toBe(false);
+    });
+  } finally {
+    await rm(fakeHome, { force: true, recursive: true });
+    await rm(cwd, { force: true, recursive: true });
   }
 });

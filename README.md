@@ -28,9 +28,9 @@ The installer script clones the harness into a temporary directory, runs `bin/se
 
 By default, `bin/setup` reads skills from the cloned harness repo, installs them into the repo in your current working directory, copies shipped OpenCode commands into `.opencode/commands/`, generates Codex prompts into `.codex/prompts/`, and bootstraps AgentKits Memory for OpenCode.
 
-Use `--global` to install into `~/.agent-harness` instead of the current repo.
+Use `--global` to install shared harness assets into `~/.agent-harness` and skills into `~/.agents/skills` instead of the current repo.
 
-Before it makes changes, `bin/setup` prompts for confirmation and shows the current repo path it will install into.
+Before it makes changes, `bin/setup` prompts for confirmation and shows the destination path or paths it will install into.
 
 ## Skills
 
