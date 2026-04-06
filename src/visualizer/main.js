@@ -1072,8 +1072,8 @@ function Visualizer() {
                                   children: run.fileName
                                 }, undefined, false, undefined, this),
                                 /* @__PURE__ */ jsxDEV("div", {
-                                  style: { ...mutedTextStyle, fontSize: "14px" },
-                                  children: run.branchName
+                                  style: { fontSize: "22px", fontWeight: 700, lineHeight: 1.2 },
+                                  children: run.project
                                 }, undefined, false, undefined, this)
                               ]
                             }, undefined, true, undefined, this),

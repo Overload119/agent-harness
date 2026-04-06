@@ -13,14 +13,15 @@ export function resolveSetupPaths(argv: string[], globalInstall = false): SetupP
     repoRoot = path.resolve(repoRoot, "..");
   }
   const sourceDir = path.join(repoRoot, "skills");
+  const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? os.homedir();
   const targetRoot = globalInstall ? homeHarnessRoot() : path.resolve(process.cwd());
-  const targetAgentsDir = path.join(targetRoot, ".agents");
+  const targetAgentsDir = globalInstall ? path.join(homeDir, ".agents") : path.join(targetRoot, ".agents");
   const targetBinDir = globalInstall ? path.join(targetRoot, "bin") : repoHarnessSubdir(targetRoot, "bin");
   const targetDiagramsDir = globalInstall ? path.join(targetRoot, "diagrams") : repoHarnessSubdir(targetRoot, "diagrams");
   const targetDir = path.join(targetAgentsDir, "skills");
   const targetLogsDir = globalInstall ? path.join(targetRoot, "logs") : repoHarnessSubdir(targetRoot, "logs");
   const targetMemoryDir = globalInstall ? path.join(targetRoot, "memory") : repoHarnessSubdir(targetRoot, "memory");
-  const codexHomeRoot = path.join(process.env.HOME ?? process.env.USERPROFILE ?? os.homedir(), ".codex");
+  const codexHomeRoot = path.join(homeDir, ".codex");
   const targetCodexPromptsDir = globalInstall
     ? path.join(codexHomeRoot, "prompts")
     : path.join(targetRoot, ".codex", "prompts");

@@ -1,4 +1,4 @@
-import { mkdir, rm, cp, readdir } from "node:fs/promises";
+import { mkdir, rm, cp, readdir, rename } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { Command } from "commander";
@@ -10,7 +10,7 @@ import { ensureGitignoreEntry } from "./gitignore";
 import { ensureAgentsMdEntry } from "./agents";
 import { renderedManifestFor, manifestFor, manifestsEqual } from "./manifest";
 import { loadMetadata } from "./metadata";
-import { confirmInstall } from "./prompt";
+import { confirmGlobalInstall, confirmInstall } from "./prompt";
 import { currentCommit, managedSkillTargetPath, resolveSetupPaths } from "./runtime";
 import { listSkillDirectories, skillNameFromSource, writeSkillDirectory } from "./skills";
 import type { SetupOptions, SetupSourceOverrides } from "./types";
@@ -21,6 +21,94 @@ async function removePath(targetPath: string): Promise<void> {
   await rm(targetPath, { force: true, recursive: true });
 }
 
+async function removePathIfEmpty(targetPath: string): Promise<void> {
+  if (!(await pathExists(targetPath))) {
+    return;
+  }
+
+  const entries = await readdir(targetPath);
+  if (entries.length === 0) {
+    await removePath(targetPath);
+  }
+}
+
+async function migrateLegacyGlobalAgents(
+  targetRoot: string,
+  targetAgentsDir: string,
+  dryRun: boolean,
+): Promise<void> {
+  const legacyAgentsDir = path.join(targetRoot, ".agents");
+  if (legacyAgentsDir === targetAgentsDir || !(await pathExists(legacyAgentsDir))) {
+    return;
+  }
+
+  const prefix = dryRun ? "Would " : "";
+  const legacyMetadataPath = path.join(legacyAgentsDir, "agent-harness-install.json");
+  const targetMetadataPath = path.join(targetAgentsDir, "agent-harness-install.json");
+
+  if (await pathExists(legacyMetadataPath)) {
+    if (!(await pathExists(targetMetadataPath))) {
+      console.log(`${prefix}migrate: legacy global metadata to ${targetMetadataPath}`);
+      if (!dryRun) {
+        await mkdir(targetAgentsDir, { recursive: true });
+        await rename(legacyMetadataPath, targetMetadataPath);
+      }
+    } else {
+      const legacyMetadata = await Bun.file(legacyMetadataPath).text();
+      const targetMetadata = await Bun.file(targetMetadataPath).text();
+
+      if (legacyMetadata === targetMetadata) {
+        console.log(`${prefix}remove: stale legacy global metadata`);
+        if (!dryRun) {
+          await removePath(legacyMetadataPath);
+        }
+      } else {
+        console.log(`${prefix}skip: legacy global metadata cleanup (new metadata already exists and differs)`);
+      }
+    }
+  }
+
+  const legacySkillsDir = path.join(legacyAgentsDir, "skills");
+  const targetSkillsDir = path.join(targetAgentsDir, "skills");
+  if (await pathExists(legacySkillsDir)) {
+    const entries = await readdir(legacySkillsDir, { withFileTypes: true });
+    for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      const legacySkillDir = path.join(legacySkillsDir, entry.name);
+      const targetSkillDir = path.join(targetSkillsDir, entry.name);
+
+      if (!(await pathExists(targetSkillDir))) {
+        console.log(`${prefix}migrate: legacy global skill ${entry.name}`);
+        if (!dryRun) {
+          await mkdir(targetSkillsDir, { recursive: true });
+          await rename(legacySkillDir, targetSkillDir);
+        }
+        continue;
+      }
+
+      const legacyManifest = await manifestFor(legacySkillDir);
+      const targetManifest = await manifestFor(targetSkillDir);
+      if (manifestsEqual(legacyManifest, targetManifest)) {
+        console.log(`${prefix}remove: stale legacy global skill ${entry.name}`);
+        if (!dryRun) {
+          await removePath(legacySkillDir);
+        }
+        continue;
+      }
+
+      console.log(`${prefix}skip: legacy global skill ${entry.name} (target already exists and differs)`);
+    }
+  }
+
+  if (!dryRun) {
+    await removePathIfEmpty(legacySkillsDir);
+    await removePathIfEmpty(legacyAgentsDir);
+  }
+}
+
 export function createProgram(): Command {
   const program = new Command();
 
@@ -28,7 +116,7 @@ export function createProgram(): Command {
     .name("setup")
     .description("Install harness skills into the current repo or a global harness root.")
     .option("--dry", "Preview install or upgrade actions without changing files")
-    .option("--global", "Install into ~/.agent-harness instead of the current repo")
+    .option("--global", "Install shared harness assets into ~/.agent-harness and skills into ~/.agents")
     .option("--overwrite", "Replace harness-managed skills with the current harness copy")
     .option("--yes", "Skip confirmation prompt")
     .helpOption("-h, --help");
@@ -71,7 +159,15 @@ export async function runSetup(
   }
 
   if (!options.dry && !options.yes) {
-    await confirmInstall(paths.targetRoot);
+    if (options.global) {
+      await confirmGlobalInstall(paths.targetRoot, paths.targetAgentsDir);
+    } else {
+      await confirmInstall(paths.targetRoot);
+    }
+  }
+
+  if (options.global) {
+    await migrateLegacyGlobalAgents(paths.targetRoot, paths.targetAgentsDir, options.dry === true);
   }
 
   await ensureGitignoreEntry(paths.targetRoot, options.dry === true);
