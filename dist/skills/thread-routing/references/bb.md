@@ -82,3 +82,19 @@ proof that creation failed. Retry only after resolving the uncertain result.
 Do not wait, resend the task, or send completion acknowledgements after a
 verified handoff. If the user explicitly requests results here, use BB's supported
 wait/inspection commands while respecting the chosen notification mode.
+
+## Optional child-thread composer UI
+
+When the full Agent Harness BB plugin is installed, **New Child Thread…** is also
+available in thread actions and from Cmd+Shift+Enter (macOS) or Ctrl+Shift+Enter
+(Windows/Linux) in an existing thread composer. Its native composer keeps rich
+mentions, attachments and selected execution options. The action creates a fresh
+child in the selected parent's existing project/workspace, with configurable
+parent notifications and a stay-on-page choice. It does not copy conversation
+history or create a sibling. Importing this skill alone does not add that UI.
+
+Agents can use the public CLI workflow above. Plugin RPC methods
+`childThreadPreferences` and `saveChildThreadPreferences` expose its saved provider,
+notification mode and stay-on-page preference; inspect their contract with
+`bb plugin rpc inspect agent-harness`. These preferences belong to the manual UI;
+do not silently apply them instead of explicit routing instructions in this skill.

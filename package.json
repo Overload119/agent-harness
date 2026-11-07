@@ -32,7 +32,7 @@
   },
   "bb": {
     "name": "Agent Harness",
-    "description": "Reusable skills, configurable weekly goals and briefs, standing instructions, and side chats.",
+    "description": "Reusable skills, a child-thread composer, Side chats, weekly goals and briefs, and optional standing instructions.",
     "branding": {
       "icon": "SideChat"
     },

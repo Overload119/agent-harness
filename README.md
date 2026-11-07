@@ -1,12 +1,12 @@
 # Agent Harness
 
-Reusable agent skills, standing instructions, Side chats, and optional weekly
+Reusable agent skills, standing instructions, a child-thread composer, Side chats, and optional weekly
 goals with scheduled briefs, shipped as one BB plugin. This is a distribution repository: maintaining it does not require
 installing its skills or preferences into this checkout.
 
 ## Install
 
-Once these changes are committed and pushed to `main`:
+Install the published version from `main`:
 
 ```sh
 bb plugin install git:https://github.com/Overload119/agent-harness.git@main
@@ -36,6 +36,33 @@ Plugins are installed once per BB installation, not separately in each project.
 Existing sessions may need a restart to discover new skills and instructions.
 Source changes do not activate the plugin automatically. The Git command reads
 the published branch; unpushed changes are available only through a local install.
+
+## Upgrade a Git installation
+
+If installed from the Git URL above with `@main`, run:
+
+```sh
+bb plugin outdated
+bb plugin update agent-harness
+```
+
+Review and confirm the proposed update. BB follows the installed branch, builds
+and reloads a compatible version. Use `bb plugin source agent-harness` to check
+its resolved commit afterward. Git tags or exact commit installs are pinned;
+these instructions apply to the branch-tracking `@main` installation.
+
+Updates keep the same plugin ID and BB-managed settings/storage. This release
+preserves Goals configuration, saved goal text, schedule identities and feature
+preferences. It does not rerun setup or change the existing automation. New
+child-composer preferences start with defaults until the first successful child
+creation; preferences from a separate plugin are not imported. Start a new agent
+session if it still lists old skills.
+
+Use update without uninstalling first. `bb plugin remove` deletes plugin settings,
+secrets and schedules; reinstalling an already-installed managed source is refused.
+There is no need to rerun `bb agent-harness setup` unless you want to change its
+configuration. A failed activation restores the previous version and reports the
+failure; inspect `bb plugin update-jobs` or `bb plugin logs agent-harness`.
 
 ## Configure after installation
 
@@ -119,6 +146,24 @@ successful completions; `off` suppresses all automatic parent reports. A top-lev
 sibling has no parent to notify. `--restate` prevents spawning unless the user
 explicitly asks to continue. Quoted flags and requests to document them do not
 activate routing.
+
+### Child-thread composer
+
+Choose **New Child Thread…** from a thread's actions menu, or press
+**Cmd+Shift+Enter** (macOS) / **Ctrl+Shift+Enter** (Windows/Linux) while its
+composer is focused. You can also add it as a row quick action through
+**Customize actions**.
+
+The dialog uses BB's native composer, including mentions, attachments, voice,
+and execution controls. It starts a fresh child in the parent's project and
+workspace. Choose parent notifications and whether to stay on the current page;
+successful creation remembers those choices and the selected provider.
+
+The UI ships with the BB plugin; importing only skills does not add it. If another
+plugin provides the same action/shortcut, keep one shortcut binding enabled and
+remove the duplicate action registration when migrating. This installation does
+not modify another plugin. See [composer details](plugin/child-thread-composer.md)
+for draft handling, agent access, and verification limits.
 
 ### Side chats panel
 

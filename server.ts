@@ -6,8 +6,9 @@ import { methods as goalsMethods } from "./plugin/goals/contract";
 import { createGoalsService } from "./plugin/goals/service";
 import { runAutomation, type RunAutomation } from "./plugin/goals/automation";
 import { registerHarnessCli } from "./plugin/goals/cli";
+import { childThreadMethods, childThreadOptionsSchema } from "./plugin/new-child-thread";
 
-export const rpcContract = defineRpcContract({ ...questionsMethods, ...goalsMethods });
+export const rpcContract = defineRpcContract({ ...questionsMethods, ...goalsMethods, ...childThreadMethods });
 
 export async function registerAgentHarness(bb: BbPluginApi, automation: RunAutomation = runAutomation) {
   const settings = bb.settings.define({
@@ -29,6 +30,14 @@ export async function registerAgentHarness(bb: BbPluginApi, automation: RunAutom
     return [enabled ? STANDING_INSTRUCTIONS : "", goalInstructions].filter(Boolean).join("\n\n") || null;
   });
   bb.rpc.register(rpcContract, {
+    childThreadPreferences: async () => {
+      const saved = await bb.storage.kv.get("child-thread-preferences");
+      return saved === undefined ? null : childThreadOptionsSchema.parse(saved);
+    },
+    saveChildThreadPreferences: async options => {
+      await bb.storage.kv.set("child-thread-preferences", options);
+      return { saved: true as const };
+    },
     setupRead: () => goals.readSetup(),
     setupOptions: ({ projectId }) => goals.options(projectId),
     setupPreview: input => goals.preview(input),

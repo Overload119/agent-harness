@@ -1,6 +1,6 @@
 ## Bring your agent workflow to another project
 
-Agent Harness bundles reusable skills, request shortcuts, and a Side chats panel
+Agent Harness bundles reusable skills, request shortcuts, a child-thread composer, and a Side chats panel
 in one BB plugin. Install it once to make those capabilities available across
 projects. No organization-specific services or external accounts are required by the plugin itself.
 
@@ -14,6 +14,11 @@ Side chats keeps context-preserving questions in one thread panel. Reopen chats 
 their original question, continue with BB's native chat controls, send a selected
 answer back, or archive a chat with a ten-second undo. New chats follow the source
 thread's lifecycle. Existing side-chat history stays in BB's thread storage.
+
+Start a child from a thread's actions menu or the composer shortcut. BB's native
+composer supplies mentions, attachments, voice and execution controls. Choose
+parent notifications and whether to stay on the current page. Children start
+fresh in the parent's workspace; they do not copy the parent's conversation.
 
 The repository also exports portable skill files for other agents through the
 skills CLI. That import supplies guidance; BB provides the panel and thread APIs.
