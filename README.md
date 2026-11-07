@@ -12,6 +12,17 @@ Install the published version from `main`:
 bb plugin install git:https://github.com/Overload119/agent-harness.git@main
 ```
 
+For a new installation that follows tagged patches in the current release line:
+
+```sh
+bb plugin install 'git:https://github.com/Overload119/agent-harness.git@^0.2.0'
+```
+
+This range accepts `0.2.x` releases; `@main` follows the latest commits, including
+unreleased work. An exact `@v0.2.0` install stays pinned. Existing `@main` users
+can keep their current source. See [CHANGELOG.md](CHANGELOG.md) for release and
+upgrade notes, and [RELEASING.md](RELEASING.md) for the publication process.
+
 A private repository works when the machine running BB has Git access. No public
 marketplace listing is required. BB installs dependencies, builds the plugin,
 and makes its skills available to agent sessions. Requires BB >=0.47 and Plugin
@@ -49,7 +60,7 @@ bb plugin update agent-harness
 Review and confirm the proposed update. BB follows the installed branch, builds
 and reloads a compatible version. Use `bb plugin source agent-harness` to check
 its resolved commit afterward. Git tags or exact commit installs are pinned;
-these instructions apply to the branch-tracking `@main` installation.
+the same update command also works for Git release-range installs such as `@^0.2.0`.
 
 Updates keep the same plugin ID and BB-managed settings/storage. This release
 preserves Goals configuration, saved goal text, schedule identities and feature
