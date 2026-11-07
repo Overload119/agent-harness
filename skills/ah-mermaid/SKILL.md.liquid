@@ -26,8 +26,10 @@ Behavior:
    - write HTML to `./.generated/diagrams/<slug>.html`
    - use the `render-mermaid.ts` script to render with beautiful-mermaid:
      ```
-     bun .agents/skills/mermaid/scripts/render-mermaid.ts <source.md> <output.html> [title]
+     bun <skill-directory>/scripts/render-mermaid.ts <source.md> <output.html> [title]
      ```
+   - resolve `<skill-directory>` from this loaded skill's location; do not assume it is installed in the project checkout
+   - the BB plugin ships this script with its rendering dependency bundled; Bun is required to run it
    - inline the generated `<svg>` into the HTML instead of relying on client-side Mermaid bootstrapping
    - keep the HTML standalone so it can be opened directly with the system browser
    - if the source came from a plan, preserve the plan order and milestone names in the rendered diagram

@@ -5,11 +5,10 @@ This repo uses Bun's built-in test runner for every test target.
 ## Where tests go
 
 - `test/harness/`: direct tests for harness path and repo-local helper behavior.
-- `test/loop/`: direct tests for loop state, locks, and PRD execution behavior.
-- `test/run-state/`: direct tests for `ah-run-state` CLI parsing and persisted updates.
 - `test/setup/`: integration-heavy tests for setup, install, and managed-file flows.
-- `test/visualizer/`: unit and integration coverage for visualizer helpers, routes, and snapshot loading.
 - `test/support/`: shared fixtures plus tests that validate the fixture helpers themselves.
+- `test/plugin/`: root plugin instructions, settings, RPC integration, and skill distribution.
+- `plugin/*.test.ts` and `plugin/*.test.tsx`: Side chats backend and native component behavior.
 
 Keep new test files in the area that matches the source code they exercise and name them `<subject>.test.ts`.
 
@@ -28,21 +27,15 @@ bun run test
 # harness scope
 bun run test:harness
 
-# loop scope
-bun run test:loop
-
-# run-state scope
-bun run test:run-state
-
 # setup scope
 bun run test:setup
+
+# plugin behavior and production typecheck
+bun run test:plugin
 
 # support scope
 bun run test:support
 
-# visualizer scope
-bun run test:visualizer
-
 # single file
-bun run test:file -- test/visualizer/prd-server.test.ts
+bun run test:file -- test/setup/run.test.ts
 ```

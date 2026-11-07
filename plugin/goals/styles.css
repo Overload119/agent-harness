@@ -1,0 +1,29 @@
+.wg-editor { display: flex; flex-direction: column; gap: 14px; padding: 20px; height: 100%; overflow: auto; box-sizing: border-box; color: var(--foreground); font-size: 13px; }
+.wg-editor h2 { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
+.wg-editor p { margin: 0; line-height: 1.5; }
+.wg-editor header p, .wg-hint, .wg-footnote, .wg-save-row span { color: var(--muted-foreground); }
+.wg-editor textarea { flex: 1; min-height: 240px; width: 100%; resize: vertical; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); color: inherit; line-height: 1.65; font: inherit; box-sizing: border-box; }
+.wg-editor textarea:focus { outline: 2px solid var(--ring); outline-offset: 2px; }
+.wg-editor button { border: 1px solid var(--border); background: var(--secondary); color: var(--secondary-foreground); padding: 7px 10px; border-radius: 6px; cursor: pointer; font: inherit; }
+.wg-editor button:disabled { opacity: .5; cursor: default; }
+.wg-editor .wg-save { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
+.wg-save-row { display: flex; align-items: center; gap: 10px; }
+.wg-footnote { font-size: 11px; }
+.wg-warning { border-left: 2px solid var(--foreground); padding-left: 10px; }
+.wg-error { color: var(--destructive); }
+.wg-editor details pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.wg-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+.ah-setup { color: var(--foreground); font-size: 13px; max-width: 760px; padding: 12px; }
+.ah-setup fieldset { border: 1px solid var(--border); border-radius: 6px; margin: 12px 0; padding: 12px; }
+.ah-setup legend { font-weight: 600; padding: 0 5px; }
+.ah-setup label { display: block; margin: 9px 0; }
+.ah-setup input:not([type=checkbox]), .ah-setup select, .ah-setup textarea { display: block; width: 100%; box-sizing: border-box; font: inherit; color: inherit; background: var(--background); border: 1px solid var(--border); border-radius: 4px; padding: 7px; margin-top: 4px; }
+.ah-setup textarea { min-height: 65px; resize: vertical; }
+.ah-setup button { padding: 6px 10px; font: inherit; color: inherit; background: var(--secondary); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
+.ah-setup button:disabled { opacity: .5; cursor: default; }
+.ah-setup :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.ah-setup [role=alert] { color: var(--destructive); white-space: pre-wrap; }
+.ah-setup-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ah-setup p { line-height: 1.5; }
+.ah-projects { max-height: 180px; overflow-y: auto; }
+.ah-setup summary { cursor: pointer; margin: 8px 0; }

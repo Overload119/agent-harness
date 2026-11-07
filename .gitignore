@@ -1,6 +1,10 @@
 .DS_Store
 .generated/
 
+# Destination-local bookkeeping and installed copies, not distribution sources.
+/.agents/agent-harness-install.json
+/.agents/skills/
+
 plans/**
 tasks/**
 
@@ -9,7 +13,14 @@ node_modules/
 .agent-harness/*
 !.agent-harness/memory/
 !.agent-harness/memory/*.md
-.agent-harness/memory/.turn_count*
-.agent-harness/memory/.turn_count_default*
 .agent-harness/
 !/.agent-harness/memory/
+
+# BB rebuilds these bundles; rendered skill resources remain tracked.
+/dist/app.js
+/dist/app.css
+/dist/app.meta.json
+/dist/server.js
+/dist/server.js.map
+/dist/server.meta.json
+/dist/package.json

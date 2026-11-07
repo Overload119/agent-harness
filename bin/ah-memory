@@ -1006,7 +1006,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
         this._exitCallback = (err) => {
           if (err.code !== "commander.executeSubCommandAsync") {
             throw err;
-          } else {}
+          }
         };
       }
       return this;
@@ -2147,40 +2147,27 @@ var {
 } = import__.default;
 
 // src/memory/cli.ts
-import { readFile } from "fs/promises";
 import path from "path";
 import process from "process";
 import { spawn } from "child_process";
 var HARNESS_DIR = ".agent-harness";
 var MEMORY_DIR = path.join(HARNESS_DIR, "memory");
-var SKILL_PATH = path.resolve(import.meta.dir, "..", ".agents", "skills", "compound", "SKILL.md");
-async function readSkill() {
-  return await readFile(SKILL_PATH, "utf8");
-}
 function createProgram() {
   const program2 = new Command;
   program2.name("ah-memory").description("Manage agent harness memory entries.").enablePositionalOptions();
-  program2.command("search <query>").description("Search memory entries across categories.").action(async (query) => {
-    const { spawn: bunSpawn } = await import("child_process");
-    const proc = bunSpawn("rg", ["-n", query, MEMORY_DIR], {
-      cwd: process.cwd(),
-      stdout: "inherit",
-      stderr: "inherit"
-    });
-    await new Promise((resolve) => proc.on("close", resolve));
-  });
   const consolidateCmd = program2.command("consolidate").description("Consolidate memory files to remove duplicates and stale content.").option("--dry", "Preview consolidation without writing.");
   consolidateCmd.action(async (options) => {
-    const skill = await readSkill();
     const prompt = [
-      "Use the ah-compound skill for this task.",
-      "",
       "Your job is to consolidate the memory files in .agent-harness/memory/.",
-      "",
-      skill,
       "",
       "## Consolidation Task",
       options.dry ? "Preview what consolidation would do. Report what entries would be merged, removed, or compacted WITHOUT writing any changes." : "Consolidate all 6 category files in .agent-harness/memory/. Remove duplicate entries, merge similar entries, remove stale content, and ensure each file stays under 500 lines.",
+      "",
+      "## Consolidation Rules",
+      "- Keep durable lessons, decisions, constraints, and reusable verification patterns.",
+      "- Remove diary-like notes, duplicate entries, stale implementation details, and one-off noise.",
+      "- Preserve the existing Markdown entry format and `---` separators.",
+      "- Do not ask the user which category to use; infer categories from the entry content.",
       "",
       "## Memory file locations",
       "- .agent-harness/memory/ARCHITECTURE.md",

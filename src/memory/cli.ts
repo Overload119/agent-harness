@@ -1,16 +1,10 @@
 import { Command } from "commander";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { spawn } from "node:child_process";
 
 const HARNESS_DIR = ".agent-harness";
 const MEMORY_DIR = path.join(HARNESS_DIR, "memory");
-const SKILL_PATH = path.resolve(import.meta.dir, "..", ".agents", "skills", "compound", "SKILL.md");
-
-async function readSkill(): Promise<string> {
-  return await readFile(SKILL_PATH, "utf8");
-}
 
 function createProgram(): Command {
   const program = new Command();
@@ -26,19 +20,19 @@ function createProgram(): Command {
     .option("--dry", "Preview consolidation without writing.");
 
   consolidateCmd.action(async (options: { dry?: boolean }) => {
-    const skill = await readSkill();
-
     const prompt = [
-      "Use the ah-compound skill for this task.",
-      "",
       "Your job is to consolidate the memory files in .agent-harness/memory/.",
-      "",
-      skill,
       "",
       "## Consolidation Task",
       options.dry
         ? "Preview what consolidation would do. Report what entries would be merged, removed, or compacted WITHOUT writing any changes."
         : "Consolidate all 6 category files in .agent-harness/memory/. Remove duplicate entries, merge similar entries, remove stale content, and ensure each file stays under 500 lines.",
+      "",
+      "## Consolidation Rules",
+      "- Keep durable lessons, decisions, constraints, and reusable verification patterns.",
+      "- Remove diary-like notes, duplicate entries, stale implementation details, and one-off noise.",
+      "- Preserve the existing Markdown entry format and `---` separators.",
+      "- Do not ask the user which category to use; infer categories from the entry content.",
       "",
       "## Memory file locations",
       "- .agent-harness/memory/ARCHITECTURE.md",

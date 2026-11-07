@@ -1,169 +1,241 @@
-# agent harness
+# Agent Harness
 
-Everyone's got an agent harness. This is mine, built exactly how I want it to work and intended to be used with OpenCode.
+Reusable agent skills, standing instructions, Side chats, and optional weekly
+goals with scheduled briefs, shipped as one BB plugin. This is a distribution repository: maintaining it does not require
+installing its skills or preferences into this checkout.
 
-It serves as a baseline setup for agent-driven development, giving me a consistent starting point that I can reuse and adapt as needed across my projects. Since I'm only building RoR apps, it works for those specifically. It's not meant to be used by anyone else. 
+## Install
 
-## Prerequisites
+Once these changes are committed and pushed to `main`:
 
-Install bun.
-
-## Getting Started
-
-Run this command in the repo you want to bootstrap with this harness. Same step works for updating.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/overload119/agent-harness/main/install.sh | bash
+```sh
+bb plugin install git:https://github.com/Overload119/agent-harness.git@main
 ```
 
-To pass arguments to `bin/setup`, use `bash -s --` before the flags:
+A private repository works when the machine running BB has Git access. No public
+marketplace listing is required. BB installs dependencies, builds the plugin,
+and makes its skills available to agent sessions. Requires BB >=0.47 and Plugin
+SDK >=0.6.75.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/overload119/agent-harness/main/install.sh | bash -s -- --yes
-curl -fsSL https://raw.githubusercontent.com/overload119/agent-harness/main/install.sh | bash -s -- --yes --overwrite
-curl -fsSL https://raw.githubusercontent.com/overload119/agent-harness/main/install.sh | bash -s -- --yes --global
+For an existing permanent local checkout, run this from the repository root:
+
+```sh
+bun run install:plugin
 ```
 
-The installer script clones the harness into a temporary directory, runs `bin/setup` in your current repo, and cleans up after itself.
+The helper installs dependencies, refreshes exports, builds, invokes BB's plugin
+installer, then verifies that `agent-harness` is running from that exact checkout.
+It needs Bun, npm, and BB. BB registers the path in place, so keep the checkout on
+disk. If dependencies and exports are already current, the direct equivalent is:
 
-By default, `bin/setup` reads skills from the cloned harness repo, installs them into the repo in your current working directory, copies shipped OpenCode commands into `.opencode/commands/`, generates Codex prompts into `.codex/prompts/`, and bootstraps AgentKits Memory for OpenCode.
-
-Use `--global` to install shared harness assets into `~/.agent-harness` and skills into `~/.agents/skills` instead of the current repo.
-
-Before it makes changes, `bin/setup` prompts for confirmation and shows the destination path or paths it will install into.
-
-## Skills
-
-Run `bin/setup` inside the repo you want to bootstrap to render the harness repo's `skills/**/SKILL.md.liquid` templates and install the result into `.agents/skills/`.
-
-Skills:
-
-- `/plan`: expand a rough request into an execution plan
-- `/commit`: inspect the working tree and draft coherent commit proposals before staging anything
-- `/prd`: convert a plan into deterministic PRD JSON under `.agent-harness/prds`
-- `/review`: produce a structured implementation review
-- `/verify`: choose and report the right verification strategy, including "how can I verify this?" style requests and browser checks when appropriate
-- `/compound`: persist reusable lessons under `.agent-harness/compounds`
-- `/mermaid`: turn plans or systems into Mermaid diagrams and render browser-openable HTML artifacts
-- `/executor`: execute one PRD task non-interactively for `ah-loop` inside a single repo checkout
-- `/oneshot`: run the loop as a coordinated plan -> prd -> execute -> review -> verify flow
-- `/ship`: prepare validated work for shipping using repo-local instructions when available
-- `/memory`: recall prior decisions, patterns, errors, and session history through AgentKits Memory
-
-Mermaid diagrams are now a first-class harness artifact:
-
-- source diagrams live in `.agent-harness/diagrams/`
-- rendered browser artifacts live in `.generated/diagrams/`
-- the shipped `/mermaid` skill is the default way to create both
-
-This repo is intentionally recursive: `agent-harness` uses `agent-harness` to build `agent-harness`, so the generated `.agents/` install tree is checked in here as a real example of the shipped skills after rendering.
-
-## Commands And Prompts
-
-User-facing OpenCode commands live in `src/opencode/commands/` and are copied to `.opencode/commands/` during setup.
-
-Codex prompts are generated from command sources and written:
-
-- to `.codex/prompts/` during normal repo installs
-- to `~/.codex/prompts/` during `bin/setup --global`
-
-The generated prompt filenames match the command filenames. When setup runs in the harness repo itself, selected internal commands such as `do-later` also generate Codex prompts. Codex custom prompts are invoked as `/prompts:<name>`, for example `/prompts:do-later`, and Codex reloads prompt changes on a new session or restart.
-
-## Testing
-
-This repo uses Bun's built-in test runner only; add new coverage with `bun test` instead of introducing a second test framework.
-
-Test layers:
-
-- Unit tests cover a single module or helper with lightweight fixtures and focused assertions. Place them beside the matching area under `test/<area>/` and name them `<subject>.test.ts`.
-- Integration tests cover filesystem-heavy flows, CLI entrypoints, or multi-module behavior. Keep them in the same `test/<area>/` tree, but organize them around the top-level feature being exercised, such as `test/setup/` or `test/visualizer/`.
-- Shared filesystem helpers belong in `test/support/fixtures.ts`; extend those helpers before copying temp-dir or temp-home setup into a new test file.
-
-Current test layout mirrors the source areas it exercises so contributors can quickly place new file-focused coverage:
-
-- `test/harness/` for harness path helpers
-- `test/loop/` for loop coordination, locks, and PRD execution state
-- `test/run-state/` for `ah-run-state` command parsing and persisted run updates
-- `test/setup/` for setup and install flows
-- `test/visualizer/` for visualizer routes, cards, and snapshot behavior
-- `test/support/` for reusable fixtures and fixture self-tests
-
-Common workflows:
-
-- Full suite: `bun run test`
-- Harness scope: `bun run test:harness`
-- Loop scope: `bun run test:loop`
-- Run-state scope: `bun run test:run-state`
-- Setup scope: `bun run test:setup`
-- Support scope: `bun run test:support`
-- Visualizer scope: `bun run test:visualizer`
-- Single file: `bun run test:file -- test/visualizer/prd-server.test.ts`
-
-When a change touches a specific file, start with the closest matching test directory, add a unit test if the behavior is isolated, and prefer an integration test when the behavior depends on real filesystem state or multiple modules working together.
-
-Run the full repo test suite with:
-
-```bash
-bun run test
+```sh
+bb plugin install /path/to/agent-harness
 ```
 
-`bun run test` is the primary test entrypoint for this repo and runs the harness, setup, visualizer, and support coverage added for the testing strategy.
+Plugins are installed once per BB installation, not separately in each project.
+Existing sessions may need a restart to discover new skills and instructions.
+Source changes do not activate the plugin automatically. The Git command reads
+the published branch; unpushed changes are available only through a local install.
 
-## Visualizer
+## Configure after installation
 
-Build the local GUI launcher:
+Run this inside a BB thread to open the setup form:
 
-```bash
-bun run build
+```sh
+bb agent-harness setup
 ```
 
-Then run:
+The same form is available in **Settings → Agent Harness → Setup**. From an
+ordinary terminal, pass `--thread <id>` or use settings. Choose features, a Goals
+destination, timezone, evidence sources, and an optional schedule. Review the
+summary, then apply. Installation itself creates no Goals thread or automation.
 
-```bash
-bin/ah-vis
+The optional Goals pane saves exact goal text with revision/week/timezone checks.
+Scheduled briefs use BB Automations and the generalized `weekly-goals-brief`
+skill. Re-running setup updates its owned schedule and preserves goals. External
+GitLab/Slack access is checked by the first brief through existing agent tools;
+setup does not copy credentials or existing personal goal data.
+
+See [Goals setup and recovery](plugin/goals/README.md) for manual-only mode,
+CLI JSON configuration, calendar behavior, and incomplete-operation recovery.
+
+## What it includes
+
+| Skill | Purpose |
+| --- | --- |
+| `user-scenarios` | Explain behavior through verified user steps, conditions, and before/after results. |
+| `r-plan` | Keep researched scope, acceptance criteria, implementation units, progress, and verification in one `PLAN.md`. |
+| `restate` | Check the intended task with `--restate` before doing work. |
+| `adhd` | Rewrite an answer with `/adhd`, or append summaries when standing instructions enable them. |
+| `unsure` | Examine whether a proposed solution addresses the right problem. |
+| `handoff` | Preserve the goal, constraints, evidence, and next action for a fresh session. |
+| `be-ambitious` | Improve a prompt's sources, methods, and verification without expanding its scope. |
+| `plain-communication` | Write clear technical explanations without losing conditions, negations, or exact identifiers. |
+| `working-artifacts` | Keep working plans and evidence in the active project. |
+| `thread-routing` | Handle child/sibling relationships, execution settings, and notification modes. |
+| `completion-focus` | Return focus to the captured origin for `--notify`. |
+| `sync-harness` | Manually generalize personal harness improvements with install checks and resumable review checkpoints. |
+| `weekly-goals-brief` | Assess configured goals from scoped evidence and save explicit user updates. |
+| `side-chats` | Use the panel for context-preserving questions and selected-answer handoffs. |
+
+The full plugin also ships the retained commit, review, verification, shipping,
+implementation-research, Mermaid, memory, and oneshot skills. `r-plan` replaces
+the old plan/PRD pair. The loop runner, run-state helper, visualizer, and memory
+turn counter are removed.
+
+`handoff` and `be-ambitious` are useful additions to the original four: they
+preserve context between sessions and improve a task's evidence and verification.
+The skills do not require organization-specific services. The retained `ah-inspire`
+workflow requires external `gh`, DeepWiki, and Exa capabilities; installing the
+plugin does not install those commands or services. Mermaid rendering requires
+Bun; its rendering dependency is bundled. Thread routing and focus require
+a harness with the corresponding capabilities; the skills include BB instructions
+and report unsupported capabilities instead of silently changing the request.
+
+### Standing instructions
+
+The plugin contributes [instructions/AGENTS.md](instructions/AGENTS.md) to agent
+sessions. It does not write to your project's or user's `AGENTS.md`. The block
+activates the communication style, summaries, artifact conventions, request
+modifiers, browser preference, and BB title icons. Detailed behavior stays in skills.
+
+Turn this instruction contribution off in the plugin's settings using **Use
+communication, request-modifier, and artifact preferences**. Skills and the panel
+remain available. Changes apply when BB next constructs the provider session.
+
+Examples:
+
+```text
+Investigate this bug without changing code. --child claude stuck
+Review this diff in the same workspace. --sibling codex off
+Check that you understand this task. --restate --child
+Run these checks and return here afterward. --notify
 ```
 
-`ah-vis` rebuilds the visualizer, starts a local server if one is not already running, waits for it to become healthy in a separate process, and opens the GUI in your browser. Keep the terminal session running while you use it.
+A child belongs to the origin. A sibling shares the origin's parent, or remains
+top-level when the origin has no parent. Siblings use the origin's execution
+settings. `auto` reports all outcomes to the new thread's parent; `stuck` omits
+successful completions; `off` suppresses all automatic parent reports. A top-level
+sibling has no parent to notify. `--restate` prevents spawning unless the user
+explicitly asks to continue. Quoted flags and requests to document them do not
+activate routing.
 
-The visualizer reads shared run state from `~/.agent-harness/runs/` and can show status across worktrees. The UI view is filtered using the command context that launched `bin/ah-vis`, rather than limiting results to repo or worktree paths under the current directory. Known test and fixture filesystem paths are always excluded.
+### Side chats panel
 
-## Loop Runner
+Open **Side chats** in a thread's panel and choose **+ New chat**. Enter a question
+in the native composer. Each chat inherits the source conversation and keeps its
+first local user question as its list label. Reopen a question to continue it;
+use **Send to main thread** on an assistant answer to queue only that answer back.
+Archive with **×** and use **Undo** within ten seconds.
 
-Then run a PRD loop:
+Native BB chat owns drafts and execution controls. Failed refreshes keep the open
+chat and previous rows. New chats are lifecycle-owned by their source, so source
+archival/deletion applies to them. Existing built-in and Brain Shortcut side-chat
+history remains recognizable through its persisted source metadata.
 
-```bash
-bin/ah-loop .agent-harness/prds/agent-harness-testing-strategy.json
+If Brain Shortcut already supplies this custom panel, enabling Agent Harness adds
+another panel until that existing registration is removed. This distribution does
+not disable or edit Brain Shortcut. See [plugin/README.md](plugin/README.md) for
+RPCs, ownership, and verification boundaries.
+
+## Optional skills-only import
+
+For other agents, or when you only want the portable skill files, run this inside
+the destination project:
+
+```sh
+npx skills add https://github.com/Overload119/agent-harness/tree/main/dist/skills
 ```
 
-`ah-loop` writes live run state to `~/.agent-harness/runs/`, logs to `~/.agent-harness/logs/`, updates the PRD as tasks complete, and emits heartbeats so `bin/ah-vis` can show status across worktrees.
+The [skills CLI](https://github.com/vercel-labs/skills) lets you choose skills and
+agents. For example:
 
-`ah-loop` executes one assigned PRD task at a time by spawning a non-interactive OpenCode run inside the target worktree. The spawned agent is expected to use the shipped `ah-executor` skill and `bin/ah-run-state` for shared run persistence.
-
-Execution model:
-
-- one worktree or repo checkout should correspond to one `ah-loop` execution
-- a single loop owns a single PRD and a single working tree while it runs
-- parallel Ralph work should come from multiple worktrees or repo clones, not multiple loops mutating one checkout
-- because run state lives in `~/.agent-harness/`, `ah-vis` can discover local run files from a shared location, reuse the same visualizer server across launches, and apply launch-context filtering without restricting visibility to a single parent directory
-
-The visualizer's temporary runtime build output lives under `.generated/`, while `dist/visualizer/` can hold checked-in example assets and PRDs for the UI.
-
-Preview changes without modifying files:
-
-```bash
-bin/setup --dry
+```sh
+npx skills add https://github.com/Overload119/agent-harness/tree/main/dist/skills \
+  --skill user-scenarios restate adhd unsure --agent claude-code codex --yes
 ```
 
-Preview managed upgrades without modifying files:
+Use `--list` to preview, `--global` for user-level installation, or repeat the
+command to import updates. To try unpushed changes from another project:
 
-```bash
-bin/setup --dry --overwrite
+```sh
+npx skills add /path/to/agent-harness/dist/skills
 ```
 
-Apply upgrades to harness-managed skills:
+This installs skill files only. It does not install the panel, activate standing
+rules, run setup, or edit `AGENTS.md`. Copy the desired sections from
+[AGENTS.example.md](AGENTS.example.md) into the destination's always-loaded
+instructions if you want automatic summaries and reliable suffix routing.
 
-```bash
-bin/setup --overwrite
+## Maintain and verify
+
+Edit `skills/ah-<name>/SKILL.md.liquid`, not generated copies. The export script
+renders the portable selection to `dist/skills/` and all plugin skills to
+`dist/plugin-skills/`. It also compiles the standing instructions into
+`src/plugin/instructions.ts` and bundles the Mermaid renderer's dependency so
+that helper can run outside this checkout. Bun is required to run the renderer.
+
+```sh
+npm ci --include=dev
+bun run export:skills
+bun run build:plugin
+bun run test:plugin
+bun test test/setup/ test/harness/ test/support/
 ```
 
-If a skill directory already exists and is not managed by the harness installer, setup skips it instead of overwriting it. When a previously managed skill is no longer shipped by the harness, `--dry --overwrite` previews its removal and `--overwrite` removes it only if the target copy still matches the last installed manifest.
+Commit the templates, rendered skill directories, generated instruction module,
+and lockfiles together. BB rebuilds the app/server bundles during Git installation;
+those bundles are not maintained source. `bb plugin types --check .` checks the SDK
+pin. After rebuilding an installed local copy, use `bb plugin reload agent-harness`.
+
+Tests cover instruction delivery, source isolation, native fork attribution,
+question labels, pagination, archive/undo, repeated clicks, failed refreshes,
+stale responses, selected-answer queuing, and skill/resource distribution. A
+fake-host test does not prove live layout or multi-plugin tab behavior. Build and
+test the distribution without installing or activating it in this source checkout.
+
+### Sync improvements from a personal harness
+
+Invoke **“Sync my harness improvements into agent-harness”** (or `$sync-harness`)
+with the source and distribution repositories available. This manual workflow is
+included in the BB plugin, skills-only export, and legacy project bootstrap. It
+requires Git and Bun; it does not create a schedule or copy changes automatically.
+
+Keep machine paths and review state in an ignored local directory, normally
+`.agent-harness/sync-harness/`. Configure the source scopes, destination mappings,
+and intentional exclusions using the skill's
+[configuration and recovery reference](skills/ah-sync-harness/references/workflow.md).
+The initial scan lists current files as unreviewed. Subsequent scans compare exact
+reviewed content, including dirty work, and retain unresolved items. The agent
+classifies and adapts useful changes, updates their installation paths, and tests
+fresh installation and upgrade in disposable destinations before checkpointing.
+Failed checks leave checkpoints unchanged; omitted files remain unreviewed.
+Maintaining this distribution never requires applying its preferences to itself.
+
+### Legacy project bootstrap
+
+`install.sh`, `bin/setup`, and `src/setup/` remain available for the older project
+bootstrap flow. They are separate from the primary BB installation and are not
+run by `bb plugin install` or `npx skills add`. They render skills into a destination
+project and retain the old OpenCode commands and optional memory CLI. They do not
+install the removed loop, run-state, visualizer, or memory counter.
+
+Use `bun run build:legacy` after editing that installer. Verify it from an isolated
+destination with the source checkout's `bin/setup --yes --overwrite`; do not run
+setup here just to maintain distribution sources. Locally edited managed skills
+are preserved when retired sources are removed. Existing `.agents/` copies in
+this checkout are installation artifacts, not distribution source.
+
+Keep `.agents/agent-harness-install.json` locally between legacy setup runs, but
+do not commit it. It records absolute source/destination paths and installed file
+hashes so upgrades can identify managed skills and preserve local edits. Setup
+adds an ignore rule for this file; it does not untrack files already committed
+by a destination project. For a previously tracked manifest, run
+`git rm --cached -- .agents/agent-harness-install.json` to keep the local file
+while removing it from Git. Deleting it loses the ownership record: existing
+skill directories then remain unmanaged, even with `--overwrite`.
+
+This source repository also ignores installed `.agents/skills/` copies. Consumer
+projects can choose to track their installed skills; setup does not ignore those
+directories. The maintained sources are `skills/`, and the distributable exports
+are `dist/skills/` and `dist/plugin-skills/`.

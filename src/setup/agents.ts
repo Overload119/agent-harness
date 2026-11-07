@@ -35,8 +35,7 @@ The agent harness uses plain Markdown files for memory storage under \`.agent-ha
 
 ### Notes
 
-- Memory entries are auto-consolidated every 10 tool executions
-- Use \`ah-compound\` to add new entries to the appropriate category
+- Memory entries are consolidated by \`ah-memory consolidate\` when files approach the soft cap
 \`\`\`
 ${END_MARKER}`;
 

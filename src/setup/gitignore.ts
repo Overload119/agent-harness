@@ -3,11 +3,10 @@ import path from "node:path";
 import { readTextIfExists } from "./fs";
 
 const GITIGNORE_ENTRIES = [
+  "/.agents/agent-harness-install.json",
   ".agent-harness/",
   "!.agent-harness/memory/",
   "!.agent-harness/memory/*.md",
-  ".agent-harness/memory/.turn_count*",
-  ".agent-harness/memory/.turn_count_default*",
 ];
 
 export async function ensureGitignoreEntry(targetRoot: string, dryRun: boolean): Promise<boolean> {

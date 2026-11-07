@@ -36,7 +36,6 @@ export type SetupOptions = {
 export type SetupSourceOverrides = {
   commandsSourceDir?: string;
   harnessCommandsSourceDir?: string;
-  includeInternalCodexCommands?: boolean;
 };
 
 export type SetupPaths = {
@@ -45,7 +44,6 @@ export type SetupPaths = {
   sourceDir: string;
   targetAgentsDir: string;
   targetBinDir: string;
-  targetCodexPromptsDir: string;
   targetDiagramsDir: string;
   targetDir: string;
   targetLogsDir: string;

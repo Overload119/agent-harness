@@ -5,14 +5,14 @@ description: Use when you need to recall past work, previous decisions, error so
 
 # ah-memory Skill
 
-## CLI Commands
+## Consolidation
 
-The `ah-memory` CLI is located at `.agent-harness/bin/ah-memory`:
-
-```bash
-ah-memory consolidate        # Validate and compact memory files
-ah-memory consolidate --dry   # Preview consolidation without writing
-```
+When the user asks to consolidate memory, read the existing category files in
+the active project's `.agent-harness/memory/`. Merge duplicate entries, remove
+stale details, and preserve durable decisions, constraints, and verification
+evidence. Keep the Markdown entry format and `---` separators. For a preview,
+report proposed changes without writing. Do not start another agent or invoke
+an external harness. There is no automatic turn counter.
 
 ## When to Activate
 
@@ -136,4 +136,6 @@ Date: YYYY-MM-DD
 
 ## Consolidation
 
-When entries grow beyond 500 lines in any category file, entries are consolidated to remove duplicates and stale content. The `ah-compound` skill handles this automatically every 10 tool executions.
+When entries grow beyond 500 lines in a category file, consolidate that file as
+part of an authorized memory update, preserving durable lessons. A read-only
+memory lookup does not authorize rewriting files.

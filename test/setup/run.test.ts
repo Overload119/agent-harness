@@ -144,11 +144,10 @@ test("setup installs shipped skills, writes managed metadata, creates harness di
     const dryRunOutput = await runSetupAndCapture(dryRunRoot, { dry: true });
 
     expect(dryRunOutput).toContain("Would update .gitignore: add .agent-harness/");
+    expect(dryRunOutput).toContain("Would update .gitignore: add /.agents/agent-harness-install.json");
     expect(dryRunOutput).toContain("Would update .gitignore: add !.agent-harness/memory/");
     expect(dryRunOutput).toContain("Would update .gitignore: add !.agent-harness/memory/*.md");
-    expect(dryRunOutput).toContain("Would update .gitignore: add .agent-harness/memory/.turn_count*");
-    expect(dryRunOutput).toContain("Would update .gitignore: add .agent-harness/memory/.turn_count_default*");
-    expect(dryRunOutput).toContain("Would install: plan");
+    expect(dryRunOutput).toContain("Would install: r-plan");
     expect(await pathExists(path.join(dryRunRoot, ".gitignore"))).toBe(false);
     expect(await pathExists(path.join(dryRunRoot, ".agents", "agent-harness-install.json"))).toBe(false);
     expect(await pathExists(path.join(dryRunRoot, ".agent-harness", "diagrams"))).toBe(false);
@@ -176,18 +175,34 @@ test("setup installs shipped skills, writes managed metadata, creates harness di
     expect(installOutput).toContain("Updated .gitignore: added .agent-harness/");
     expect(installOutput).toContain("Updated .gitignore: added !.agent-harness/memory/");
     expect(installOutput).toContain("Updated .gitignore: added !.agent-harness/memory/*.md");
-    expect(installOutput).toContain("Updated .gitignore: added .agent-harness/memory/.turn_count*");
-    expect(installOutput).toContain("Updated .gitignore: added .agent-harness/memory/.turn_count_default*");
-    expect(installOutput).toContain("install: plan");
+    expect(installOutput).toContain("install: r-plan");
     expect(installedSkillNames).toEqual(expectedSkills);
+    expect(installedSkillNames).not.toContain("plan");
+    expect(installedSkillNames).not.toContain("prd");
+    expect(installedSkillNames).toContain("r-plan");
+    for (const name of ["user-scenarios", "restate", "adhd", "unsure", "handoff", "be-ambitious"]) {
+      expect(installedSkillNames).toContain(name);
+      const installed = await readFile(path.join(installedSkillsDir, name, "SKILL.md"), "utf8");
+      expect(installed).toBe(await readFile(path.join(REPO_ROOT, "dist", "skills", name, "SKILL.md"), "utf8"));
+    }
+    for (const name of ["ah-memory"]) {
+      expect(await pathExists(path.join(installRoot, ".agent-harness", "bin", name))).toBe(true);
+    }
+    for (const name of ["ah-loop", "ah-run-state", "ah-vis"]) {
+      expect(await pathExists(path.join(installRoot, ".agent-harness", "bin", name))).toBe(false);
+    }
+    expect(await pathExists(path.join(installRoot, "tui.json"))).toBe(true);
+    expect(await pathExists(path.join(installRoot, ".opencode", "plugins"))).toBe(false);
+    expect(installOutput).not.toContain("turn-counter");
+    expect(gitignoreLines.some((line) => line.includes("turn_count"))).toBe(false);
     expect(metadata.formatVersion).toBe(1);
     expect(Object.keys(metadata.skills).sort((left, right) => left.localeCompare(right))).toEqual(expectedSkills);
     expect(metadata.source?.repoRoot).toBe(REPO_ROOT);
     expect(metadata.source?.commit).not.toBe("");
     expect(metadata.targetRoot).toBe(await realpath(installRoot));
-    expect(metadata.skills.plan).toMatchObject({
+    expect(metadata.skills["r-plan"]).toMatchObject({
       managed: true,
-      targetPath: ".agents/skills/plan",
+      targetPath: ".agents/skills/r-plan",
     });
     expect(gitignoreLines.filter((line) => line === ".agent-harness/")).toHaveLength(1);
     expect(await pathExists(path.join(installRoot, ".agent-harness", "diagrams"))).toBe(true);
@@ -203,23 +218,41 @@ test("setup installs shipped skills, writes managed metadata, creates harness di
     expect(verifySkill).toContain("Visual proof");
     expect(verifySkill).toContain("exact local file path");
 
-    const managedSkillPath = path.join(installedSkillsDir, "plan", "SKILL.md");
+    const managedSkillPath = path.join(installedSkillsDir, "r-plan", "SKILL.md");
     const originalManagedSkill = await readFile(managedSkillPath, "utf8");
     await writeFile(managedSkillPath, `${originalManagedSkill}\nLOCAL CHANGE\n`, "utf8");
 
     const skipOutput = await runSetupAndCapture(installRoot, {});
     const skippedManagedSkill = await readFile(managedSkillPath, "utf8");
 
-    expect(skipOutput).toContain("skip: plan (managed skill has local changes; re-run with --overwrite to restore harness files)");
+    expect(skipOutput).toContain("skip: r-plan (managed skill has local changes; re-run with --overwrite to restore harness files)");
     expect(skippedManagedSkill).toContain("LOCAL CHANGE");
 
     const overwriteOutput = await runSetupAndCapture(installRoot, { overwrite: true });
     const restoredManagedSkill = await readFile(managedSkillPath, "utf8");
     const rewrittenGitignoreLines = (await readFile(gitignorePath, "utf8")).trim().split(/\r?\n/);
 
-    expect(overwriteOutput).toContain("update: plan (overwriting local changes with harness files)");
+    expect(overwriteOutput).toContain("update: r-plan (overwriting local changes with harness files)");
     expect(restoredManagedSkill).toBe(originalManagedSkill);
     expect(rewrittenGitignoreLines.filter((line) => line === ".agent-harness/")).toHaveLength(1);
+    expect(rewrittenGitignoreLines.filter((line) => line === "/.agents/agent-harness-install.json")).toHaveLength(1);
+
+    // Provenance paths may refer to another machine; upgrade ownership uses hashes.
+    const movedMetadata = JSON.parse(await readFile(metadataPath, "utf8"));
+    movedMetadata.source.repoRoot = "/previous-machine/harness";
+    movedMetadata.targetRoot = "/previous-machine/project";
+    movedMetadata.skills["r-plan"].sourcePath = "/previous-machine/harness/skills/ah-r-plan";
+    await writeFile(metadataPath, JSON.stringify(movedMetadata));
+    await writeFile(managedSkillPath, `${originalManagedSkill}\nLOCAL CHANGE\n`);
+    expect(await runSetupAndCapture(installRoot, {})).toContain("managed skill has local changes");
+    await runSetupAndCapture(installRoot, { overwrite: true });
+    expect(await readFile(managedSkillPath, "utf8")).toBe(originalManagedSkill);
+
+    // A missing local manifest must never authorize overwriting existing files.
+    await rm(metadataPath);
+    await writeFile(managedSkillPath, "UNMANAGED CUSTOM SKILL\n");
+    expect(await runSetupAndCapture(installRoot, { overwrite: true })).toContain("existing directory is not managed by agent-harness");
+    expect(await readFile(managedSkillPath, "utf8")).toBe("UNMANAGED CUSTOM SKILL\n");
   } finally {
     await rm(dryRunRoot, { force: true, recursive: true });
     await rm(installRoot, { force: true, recursive: true });
@@ -266,22 +299,6 @@ test("AGENTS.md: adds memory section on first run, is idempotent on subsequent r
   }
 });
 
-test("setup renders bin_path template variable in installed skills", async () => {
-  const targetRoot = await createTargetRepo("ah-setup-binpath-");
-
-  try {
-    await runSetupAndCapture(targetRoot, {});
-
-    const executorSkillPath = path.join(targetRoot, ".agents", "skills", "executor", "SKILL.md");
-    const executorSkill = await readFile(executorSkillPath, "utf8");
-
-    expect(executorSkill).not.toContain("{{ bin_path }}");
-    expect(executorSkill).toContain(".agent-harness/bin/ah-run-state");
-  } finally {
-    await rm(targetRoot, { force: true, recursive: true });
-  }
-});
-
 test("setup creates .agent-harness/memory directory and recreates it after deletion", async () => {
   const targetRoot = await createTargetRepo("ah-setup-memory-");
 
@@ -299,60 +316,7 @@ test("setup creates .agent-harness/memory directory and recreates it after delet
   }
 });
 
-test("memory-turn-counter plugin gracefully handles missing turn count file", async () => {
-  const targetRoot = await createTargetRepo("ah-turn-counter-");
-
-  try {
-    const installOutput = await runSetupAndCapture(targetRoot, {});
-
-    const tuiTarget = path.join(targetRoot, "tui.json");
-    const pluginTarget = path.join(targetRoot, ".opencode", "plugins", "ah-memory-turn-counter.js");
-    expect(await pathExists(tuiTarget)).toBe(true);
-    expect(await pathExists(pluginTarget)).toBe(true);
-    expect(installOutput).toContain("copied:");
-    expect(installOutput).toContain("tui.json");
-
-    const memoryDir = path.join(targetRoot, ".agent-harness", "memory");
-    expect(await pathExists(memoryDir)).toBe(true);
-
-    const { MemoryTurnCounter } = await import(path.join(targetRoot, ".opencode", "plugins", "ah-memory-turn-counter.js"));
-
-    const logs: unknown[] = [];
-    const mockClient = {
-      app: {
-        log: async ({ body }: { body: unknown }) => {
-          logs.push(body);
-        },
-      },
-    };
-
-    const { $ } = await import("bun");
-    const plugin = await MemoryTurnCounter({
-      client: mockClient as any,
-      $,
-      directory: targetRoot,
-      worktree: undefined,
-    });
-
-    const newSessionId = "nonexistent-session-12345";
-    const turnCountFile = path.join(memoryDir, `.turn_count_${newSessionId}`);
-    expect(await pathExists(turnCountFile)).toBe(false);
-
-    await plugin.event({
-      event: { type: "session.created", properties: { sessionID: newSessionId } },
-    });
-
-    const sessionLog = logs.find(
-      (l: any) => l.service === "memory-turn-counter" && l.message?.includes("started with turn count")
-    );
-    expect(sessionLog).toBeDefined();
-    expect((sessionLog as any).message).toContain("started with turn count 0");
-  } finally {
-    await rm(targetRoot, { force: true, recursive: true });
-  }
-});
-
-test("setup installs skills successfully when run from harness repo directory", async () => {
+test("setup installs skills into a separate destination project", async () => {
   const harnessRoot = await createTargetRepo("ah-setup-harness-");
 
   try {
@@ -361,7 +325,7 @@ test("setup installs skills successfully when run from harness repo directory", 
     });
 
     expect(await pathExists(path.join(harnessRoot, ".agent-harness", "memory"))).toBe(true);
-    expect(await pathExists(path.join(harnessRoot, ".agents", "skills", "plan", "SKILL.md"))).toBe(true);
+    expect(await pathExists(path.join(harnessRoot, ".agents", "skills", "r-plan", "SKILL.md"))).toBe(true);
   } finally {
     await rm(harnessRoot, { force: true, recursive: true });
   }
@@ -384,63 +348,9 @@ test("setup works when run from any directory (not just the harness repo)", asyn
     expect(result.exitCode).toBe(0);
     expect(stdout + stderr).toContain("Installed");
     expect(await pathExists(path.join(unrelatedDir, ".agent-harness", "memory"))).toBe(true);
-    expect(await pathExists(path.join(unrelatedDir, ".agents", "skills", "plan", "SKILL.md"))).toBe(true);
+    expect(await pathExists(path.join(unrelatedDir, ".agents", "skills", "r-plan", "SKILL.md"))).toBe(true);
   } finally {
     await rm(unrelatedDir, { force: true, recursive: true });
-  }
-});
-
-test("memory-turn-counter plugin creates memory directory if missing", async () => {
-  const targetRoot = await createTargetRepo("ah-turn-counter-missing-dir-");
-
-  try {
-    await runSetupAndCapture(targetRoot, {});
-
-    const pluginTarget = path.join(targetRoot, ".opencode", "plugins", "ah-memory-turn-counter.js");
-    const { MemoryTurnCounter } = await import(pluginTarget);
-
-    const logs: unknown[] = [];
-    const mockClient = {
-      app: {
-        log: async ({ body }: { body: unknown }) => {
-          logs.push(body);
-        },
-      },
-    };
-
-    const { $ } = await import("bun");
-    const plugin = await MemoryTurnCounter({
-      client: mockClient as any,
-      $,
-      directory: targetRoot,
-      worktree: undefined,
-    });
-
-    const memoryDir = path.join(targetRoot, ".agent-harness", "memory");
-    await rm(memoryDir, { force: true, recursive: true });
-    expect(await pathExists(memoryDir)).toBe(false);
-
-    const newSessionId = "test-session-67890";
-    await plugin.event({
-      event: { type: "session.created", properties: { sessionID: newSessionId } },
-    });
-
-    expect(await pathExists(memoryDir)).toBe(false);
-
-    await plugin["chat.message"]({
-      sessionID: newSessionId,
-      message: { role: "user", content: "hello" },
-    });
-
-    expect(await pathExists(memoryDir)).toBe(true);
-
-    const sessionLog = logs.find(
-      (l: any) => l.service === "memory-turn-counter" && l.message?.includes("started with turn count")
-    );
-    expect(sessionLog).toBeDefined();
-    expect((sessionLog as any).message).toContain("started with turn count 0");
-  } finally {
-    await rm(targetRoot, { force: true, recursive: true });
   }
 });
 
@@ -478,72 +388,6 @@ Deploy workflow here.
   }
 });
 
-test("setup generates user-facing Codex prompts into the project directory", async () => {
-  const targetRoot = await createTargetRepo("ah-codex-prompts-");
-  const commandSource = await createCommandSourceDir("ah-codex-command-source-", {
-    "deploy.md": `---
-name: deploy
-description: Deploy the application
-argument-hint: ENV=<environment>
----
-
-Deploy workflow here.
-
-$ARGUMENTS
-`,
-  });
-
-  try {
-    const installOutput = await runSetupAndCapture(targetRoot, {}, { commandsSourceDir: commandSource.dir });
-
-    const targetPromptsDir = path.join(targetRoot, ".codex", "prompts");
-    expect(await pathExists(targetPromptsDir)).toBe(true);
-
-    const files = await readdir(targetPromptsDir, { withFileTypes: true });
-    const fileNames = files.filter((f) => f.isFile()).map((f) => f.name).sort((left, right) => left.localeCompare(right));
-    const deployPrompt = await readFile(path.join(targetPromptsDir, "deploy.md"), "utf8");
-
-    expect(fileNames).toEqual(commandSource.names);
-    expect(installOutput).toContain(`installing ${commandSource.names.length} Codex prompt(s)`);
-    expect(installOutput).toContain(".codex/prompts/deploy.md");
-    expect(deployPrompt).toContain("description: Deploy the application");
-    expect(deployPrompt).toContain("argument-hint: ENV=<environment>");
-    expect(deployPrompt).toContain("$ARGUMENTS");
-    expect(deployPrompt).not.toContain("name: deploy");
-
-    const dryOutput = await runSetupAndCapture(targetRoot, { dry: true }, { commandsSourceDir: commandSource.dir });
-    expect(dryOutput).toContain(`Would generate Codex prompts: ${commandSource.names.join(", ")} to `);
-    expect(dryOutput).toContain(".codex/prompts");
-  } finally {
-    await rm(targetRoot, { force: true, recursive: true });
-    await rm(commandSource.root, { force: true, recursive: true });
-  }
-});
-
-test("setup can generate an internal do-later Codex prompt when that command is included", async () => {
-  const targetRoot = await createTargetRepo("ah-codex-do-later-");
-
-  try {
-    const installOutput = await runSetupAndCapture(
-      targetRoot,
-      {},
-      {
-        includeInternalCodexCommands: true,
-      },
-    );
-
-    const targetPromptsDir = path.join(targetRoot, ".codex", "prompts");
-    const doLaterPrompt = await readFile(path.join(targetPromptsDir, "do-later.md"), "utf8");
-
-    expect(installOutput).toContain(".codex/prompts/do-later.md");
-    expect(doLaterPrompt).toContain("description: Continue working on the current task with todo tracking");
-    expect(doLaterPrompt).toContain("$ARGUMENTS");
-    expect(doLaterPrompt).not.toContain("name: do-later");
-  } finally {
-    await rm(targetRoot, { force: true, recursive: true });
-  }
-});
-
 test("setup --global installs shared assets into ~/.agent-harness and skills into ~/.agents without touching the current repo", async () => {
   const fakeHome = await createTargetRepo("ah-setup-home-");
   const cwd = await createTargetRepo("ah-setup-cwd-");
@@ -568,17 +412,15 @@ Deploy workflow here.
     const agentsRoot = path.join(fakeHome, ".agents");
     expect(output).toContain(harnessRoot);
     expect(await pathExists(path.join(agentsRoot, "agent-harness-install.json"))).toBe(true);
-    expect(await pathExists(path.join(agentsRoot, "skills", "plan", "SKILL.md"))).toBe(true);
+    expect(await pathExists(path.join(agentsRoot, "skills", "r-plan", "SKILL.md"))).toBe(true);
+    for (const name of ["user-scenarios", "restate", "adhd", "unsure", "handoff", "be-ambitious"]) {
+      expect(await pathExists(path.join(agentsRoot, "skills", name, "SKILL.md"))).toBe(true);
+    }
+    expect(await pathExists(path.join(harnessRoot, ".opencode", "plugins"))).toBe(false);
     expect(await pathExists(path.join(harnessRoot, "bin"))).toBe(true);
     expect(await pathExists(path.join(harnessRoot, "memory"))).toBe(true);
     expect(await pathExists(path.join(harnessRoot, ".agents"))).toBe(false);
-    const codexPromptsDir = path.join(fakeHome, ".codex", "prompts");
-    expect(await pathExists(codexPromptsDir)).toBe(true);
-    const codexPromptFiles = (await readdir(codexPromptsDir, { withFileTypes: true }))
-      .filter((entry) => entry.isFile())
-      .map((entry) => entry.name)
-      .sort((left, right) => left.localeCompare(right));
-    expect(codexPromptFiles).toEqual(commandSource.names);
+    expect(await pathExists(path.join(fakeHome, ".codex"))).toBe(false);
     expect(await pathExists(path.join(cwd, ".agents"))).toBe(false);
     expect(await pathExists(path.join(cwd, ".agent-harness"))).toBe(false);
     expect(await pathExists(path.join(cwd, ".codex"))).toBe(false);
@@ -600,9 +442,9 @@ test("setup --global migrates legacy ~/.agent-harness/.agents skills and metadat
       const { writeSkillDirectory } = await import("../../src/setup/skills");
 
       const templateVariables = await createTemplateVariables(REPO_ROOT);
-      const sourceSkillDir = path.join(REPO_ROOT, "skills", "ah-plan");
+      const sourceSkillDir = path.join(REPO_ROOT, "skills", "ah-r-plan");
       const legacyAgentsDir = path.join(fakeHome, ".agent-harness", ".agents");
-      const legacySkillDir = path.join(legacyAgentsDir, "skills", "plan");
+      const legacySkillDir = path.join(legacyAgentsDir, "skills", "r-plan");
       const legacyMetadataPath = path.join(legacyAgentsDir, "agent-harness-install.json");
       const installedFiles = await renderedManifestFor(sourceSkillDir, templateVariables);
 
@@ -613,11 +455,11 @@ test("setup --global migrates legacy ~/.agent-harness/.agents skills and metadat
           {
             formatVersion: 1,
             skills: {
-              plan: {
+              "r-plan": {
                 managed: true,
-                sourceSkill: "ah-plan",
+                sourceSkill: "ah-r-plan",
                 sourcePath: sourceSkillDir,
-                targetPath: ".agents/skills/plan",
+                targetPath: ".agents/skills/r-plan",
                 installedFiles,
               },
             },
@@ -634,9 +476,9 @@ test("setup --global migrates legacy ~/.agent-harness/.agents skills and metadat
       });
 
       expect(output).toContain("migrate: legacy global metadata");
-      expect(output).toContain("migrate: legacy global skill plan");
+      expect(output).toContain("migrate: legacy global skill r-plan");
       expect(await pathExists(path.join(fakeHome, ".agents", "agent-harness-install.json"))).toBe(true);
-      expect(await pathExists(path.join(fakeHome, ".agents", "skills", "plan", "SKILL.md"))).toBe(true);
+      expect(await pathExists(path.join(fakeHome, ".agents", "skills", "r-plan", "SKILL.md"))).toBe(true);
       expect(await pathExists(legacyMetadataPath)).toBe(false);
       expect(await pathExists(legacySkillDir)).toBe(false);
       expect(await pathExists(legacyAgentsDir)).toBe(false);
@@ -646,3 +488,35 @@ test("setup --global migrates legacy ~/.agent-harness/.agents skills and metadat
     await rm(cwd, { force: true, recursive: true });
   }
 });
+
+for (const modified of [false, true]) {
+  test(`combined r-plan upgrade ${modified ? 'preserves locally edited' : 'removes unchanged'} managed plan/prd`, async () => {
+    const targetRoot = await createTargetRepo('ah-combined-plan-');
+    const { manifestFor } = await import('../../src/setup/manifest');
+    try {
+      const metadata = { formatVersion: 1, skills: {} as Record<string, unknown>, commands: {} };
+      for (const name of ['plan', 'prd']) {
+        const dir = path.join(targetRoot, '.agents', 'skills', name);
+        await mkdir(dir, { recursive: true });
+        const skillPath = path.join(dir, 'SKILL.md');
+        await writeFile(skillPath, `---\nname: ah-${name}\ndescription: Old planning skill\n---\nOld content\n`);
+        metadata.skills[name] = { managed: true, targetPath: `.agents/skills/${name}`, installedFiles: await manifestFor(dir) };
+        if (modified) await writeFile(skillPath, 'LOCAL CUSTOMIZATION\n');
+      }
+      const metadataPath = path.join(targetRoot, '.agents/agent-harness-install.json');
+      await writeFile(metadataPath, JSON.stringify(metadata));
+      const preview = await runSetupAndCapture(targetRoot, { dry: true, overwrite: true });
+      expect(preview).toContain(modified ? 'skip stale managed skill: plan' : 'Would remove: plan');
+      expect(await pathExists(path.join(targetRoot, '.agents/skills/plan/SKILL.md'))).toBe(true);
+      await runSetupAndCapture(targetRoot, { overwrite: true });
+      const installedMetadata = JSON.parse(await readFile(metadataPath, 'utf8'));
+      for (const name of ['plan', 'prd']) {
+        const file = path.join(targetRoot, '.agents/skills', name, 'SKILL.md');
+        expect(await pathExists(file)).toBe(modified);
+        if (modified) expect(await readFile(file, 'utf8')).toBe('LOCAL CUSTOMIZATION\n');
+        else expect(installedMetadata.skills[name]).toBeUndefined();
+      }
+      expect(await pathExists(path.join(targetRoot, '.agents/skills/r-plan/references/format.md'))).toBe(true);
+    } finally { await rm(targetRoot, { recursive: true, force: true }); }
+  });
+}

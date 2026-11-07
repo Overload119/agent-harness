@@ -4,7 +4,7 @@ import process from "node:process";
 import { Command } from "commander";
 
 import { createTemplateVariables } from "./constants";
-import { listCodexPromptSources, listTopLevelMarkdownFiles, renderCodexPromptFromCommand } from "./commands";
+import { listTopLevelMarkdownFiles } from "./commands";
 import { pathExists } from "./fs";
 import { ensureGitignoreEntry } from "./gitignore";
 import { ensureAgentsMdEntry } from "./agents";
@@ -15,7 +15,7 @@ import { currentCommit, managedSkillTargetPath, resolveSetupPaths } from "./runt
 import { listSkillDirectories, skillNameFromSource, writeSkillDirectory } from "./skills";
 import type { SetupOptions, SetupSourceOverrides } from "./types";
 
-const HARNESS_BIN_CLIS = ["ah-loop", "ah-run-state", "ah-vis"] as const;
+const HARNESS_BIN_CLIS = ["ah-memory"] as const;
 
 async function removePath(targetPath: string): Promise<void> {
   await rm(targetPath, { force: true, recursive: true });
@@ -392,17 +392,11 @@ export async function runSetup(
   const isHarnessRepo = paths.targetRoot === paths.repoRoot;
   const tuiSource = path.join(paths.repoRoot, "tui.json");
   const tuiTarget = path.join(paths.targetRoot, "tui.json");
-  const pluginsSourceDir = path.join(paths.repoRoot, ".opencode", "plugins");
-  const pluginsTargetDir = path.join(paths.targetRoot, ".opencode", "plugins");
-  const pluginSource = path.join(pluginsSourceDir, "ah-memory-turn-counter.js");
-  const pluginTarget = path.join(pluginsTargetDir, "ah-memory-turn-counter.js");
   const commandsSourceDir = sourceOverrides.commandsSourceDir ?? path.join(paths.repoRoot, "src", "opencode", "commands");
   const commandsTargetDir = path.join(paths.targetRoot, ".opencode", "commands");
-  const codexPromptsTargetDir = paths.targetCodexPromptsDir;
   const harnessCommandsSourceDir =
     sourceOverrides.harnessCommandsSourceDir ?? path.join(paths.repoRoot, "src", "harness", "commands");
   const harnessCommandsTargetDir = path.join(paths.targetRoot, ".opencode", "commands");
-  const includeInternalCodexCommands = sourceOverrides.includeInternalCodexCommands ?? isHarnessRepo;
 
   const cmdPrefix = options.dry ? "Would " : "";
   const commandNames = ["do-later"];
@@ -467,9 +461,6 @@ export async function runSetup(
     if (await pathExists(tuiSource)) {
       console.log(`Would copy ${tuiSource} to ${tuiTarget}`);
     }
-    if (await pathExists(pluginSource)) {
-      console.log(`Would copy ${pluginSource} to ${pluginTarget}`);
-    }
     if (await pathExists(commandsSourceDir)) {
       const userCommands = await listTopLevelMarkdownFiles(commandsSourceDir);
       if (userCommands.length > 0) {
@@ -481,11 +472,6 @@ export async function runSetup(
       await mkdir(paths.targetRoot, { recursive: true });
       await cp(tuiSource, tuiTarget);
       console.log(`copied: ${tuiSource} → ${tuiTarget}`);
-    }
-    if (await pathExists(pluginSource)) {
-      await mkdir(pluginsTargetDir, { recursive: true });
-      await cp(pluginSource, pluginTarget);
-      console.log(`copied: ${pluginSource} → ${pluginTarget}`);
     }
     if (await pathExists(commandsSourceDir)) {
       const userCommands = await listTopLevelMarkdownFiles(commandsSourceDir);
@@ -499,28 +485,6 @@ export async function runSetup(
           console.log(`copied: ${src} → ${tgt}`);
         }
       }
-    }
-  }
-
-  const codexPromptSources = await listCodexPromptSources({
-    userCommandsDir: commandsSourceDir,
-    internalCommandsDir: harnessCommandsSourceDir,
-    includeInternalCommands: includeInternalCodexCommands,
-  });
-
-  if (options.dry) {
-    if (codexPromptSources.length > 0) {
-      console.log(
-        `Would generate Codex prompts: ${codexPromptSources.map((f) => f.fileName).join(", ")} to ${codexPromptsTargetDir}`,
-      );
-    }
-  } else if (codexPromptSources.length > 0) {
-    console.log(`installing ${codexPromptSources.length} Codex prompt(s) to ${codexPromptsTargetDir}...`);
-    await mkdir(codexPromptsTargetDir, { recursive: true });
-    for (const source of codexPromptSources) {
-      const tgt = path.join(codexPromptsTargetDir, source.fileName);
-      await Bun.write(tgt, renderCodexPromptFromCommand(await Bun.file(source.sourcePath).text()));
-      console.log(`generated: ${source.sourcePath} → ${tgt}`);
     }
   }
 
