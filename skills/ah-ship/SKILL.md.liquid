@@ -21,7 +21,7 @@ Behavior:
 4. Apply the safest matching action:
    - if explicit repo instructions exist, follow them without inventing extra deploy steps
    - if no instructions exist, prepare a concise commit plan and commit only when the user explicitly asked for it
-   - if the branch is not `main` or `master`, call out any merge or PR decision as a separate choice instead of assuming it
+   - use the repository's actual default branch when identifying any merge or PR decision; do not infer it from a branch name
 5. Never use destructive git operations unless the user explicitly requests them.
 
 Shipping rules:
@@ -29,7 +29,6 @@ Shipping rules:
 - Do not invent credentials, environments, deploy commands, or branch policies.
 - Do not create an empty commit.
 - Do not hide blockers such as failing verification, missing release notes, or absent deploy instructions.
-- Normalize `main` and `master` as equivalent default branches unless the repo documents something else.
 
 Output format:
 

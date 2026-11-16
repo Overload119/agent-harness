@@ -66,7 +66,3 @@ uncertain result. The panel's native action also records its sender thread.
 conversation with explicit ownership, settings, and notification policy. Side
 chats are context forks for questions. Do not substitute a fork for a requested
 sibling, create a new worktree, or expand an explanation request into implementation.
-
-The plugin can show its own chats and existing built-in Side chat
-forks. It also recognizes persisted Brain Shortcut side chats so extracting the
-panel does not hide existing history; this does not require that plugin to run.

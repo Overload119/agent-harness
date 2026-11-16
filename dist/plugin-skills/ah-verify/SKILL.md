@@ -25,7 +25,7 @@ Behavior:
    - otherwise prefer repository-native checks such as tests, typecheck, build, linters, scripts, or manual reasoning
    - if the user is asking how to verify something before evidence exists, return the most credible verification approach instead of pretending the work is already verified
 3. If browser verification is relevant and feasible:
-   - use the `agent-browser` skill for navigation, interaction, screenshots, and observed behavior
+   - use available browser tools for navigation, interaction, screenshots, and observed behavior; follow the `agent-browser` skill when it is installed
    - capture concrete evidence such as pages visited, assertions made, and any failures encountered
    - when verification produces visual proof such as screenshots, saved HTML, or other browser-openable artifacts, include the exact local file path in the final answer so the user can open it immediately
 4. If browser verification is not the right fit:

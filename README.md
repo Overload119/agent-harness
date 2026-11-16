@@ -102,6 +102,9 @@ CLI JSON configuration, calendar behavior, and incomplete-operation recovery.
 | Skill | Purpose |
 | --- | --- |
 | `user-scenarios` | Explain behavior through verified user steps, conditions, and before/after results. |
+| `explain-inline` | Show interactive explanations with a one-file offline component library and embedded Pele Mermaid renderer. |
+| `premortem` | Verify new failure scenarios before shipping, with detection, recovery, and a ship/hold decision. |
+| `r-teach` | Teach through a visual overview, behavior questions, evidence-backed feedback, and an optional re-test. |
 | `r-plan` | Keep researched scope, acceptance criteria, implementation units, progress, and verification in one `PLAN.md`. |
 | `restate` | Check the intended task with `--restate` before doing work. |
 | `adhd` | Rewrite an answer with `/adhd`, or append summaries when standing instructions enable them. |
@@ -295,3 +298,40 @@ This source repository also ignores installed `.agents/skills/` copies. Consumer
 projects can choose to track their installed skills; setup does not ignore those
 directories. The maintained sources are `skills/`, and the distributable exports
 are `dist/skills/` and `dist/plugin-skills/`.
+
+### Visual explanations and teaching
+
+`explain-inline` is a reusable component library for explanations shown inside
+BB chat. Its single `SKILL.md` (roughly 430 KB) holds the guidance, the complete
+HTML/CSS/JavaScript runtime, and a pinned, compressed Pele 1.13.0 bundle, so
+copying just the skill is sufficient. An agent writes inert JSON; the skill's Bun
+recipe turns it into a standalone page that needs no package installation or
+network. Pele's MIT and bundled icon ISC notices are included in the skill.
+
+| Component | Use it when the reader asks |
+| --- | --- |
+| Lifecycle | What happens to one request, in what order? Boxes, directed arrows, and a step player whose marker travels each active arrow; async hand-offs are dashed and failure steps turn red. |
+| CodeMap | Which code parts connect, and what did a change rewire? A clickable diagram with Before, After, and All views and a detail panel for the selected part. |
+| CodeTour + TourStop | Which exact lines decide this? Numbered stops with exact excerpts and their consequence. |
+| Mermaid | What is the shape of this logic, conversation, state, or data? The skill says when to choose `flowchart`, `sequenceDiagram`, `stateDiagram-v2`, `erDiagram`, or `classDiagram`. |
+| Chart | How do measured values compare (bar) or change (line)? |
+| Grid + Stat | What are the few numbers to remember? |
+| Steps + Step | What must I do, in order? |
+| Callout | What must I not miss? |
+
+There is no Diff component: BB's own Diff tab and ordinary `diff` code fences
+already render changes. Pages follow BB's `inline-vis` layout rules: a
+transparent background, a fluid chat-column width, padded inner panels, fixed
+chart heights, and BB's live theme variables, so they match the reader's theme
+in light and dark mode. Motion stops under the system's reduced-motion setting.
+
+BB's separate `inline-vis` capability displays the HTML inside chat; without it,
+open the generated HTML in a modern browser supporting `DecompressionStream`.
+Other harnesses can use their own local artifact viewer. The skill reports
+render errors rather than silently substituting another Mermaid renderer.
+
+`r-teach` uses these components for its overview and answer reveals. It keeps
+questions in chat, verifies answer keys against the source, and shows the
+deciding code after missed answers. Scheduling a re-test is opt-in. Neither
+skill publishes pages or changes live schedules by default. `premortem` can
+review local branches or use the repository's available GitHub/GitLab integration.

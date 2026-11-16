@@ -12,7 +12,7 @@ the active project's `.agent-harness/memory/`. Merge duplicate entries, remove
 stale details, and preserve durable decisions, constraints, and verification
 evidence. Keep the Markdown entry format and `---` separators. For a preview,
 report proposed changes without writing. Do not start another agent or invoke
-an external harness. There is no automatic turn counter.
+an external harness.
 
 ## When to Activate
 
@@ -80,23 +80,8 @@ Store lessons about **the user's coding style, taste, and preferences**:
 - Coding style preferences (e.g., "prefers controller-based APIs", "dislikes over-commenting")
 - Architectural preferences (e.g., "follows clean architecture", "prefers one type per file")
 - Trade-off priorities (e.g., "readability over brevity", "explicit over clever")
-- Preferences stated directly by the user vs. inferred from behavior
+- Record whether a preference was stated or inferred. Follow newer explicit corrections.
 
-### USER_PREFERENCES.md - Purpose
-
-This file captures the agent's evolving understanding of the user's taste, coding style, and preferences — not configuration or settings, but accumulated knowledge about how the user thinks and what they value.
-
-**What belongs here:**
-- Coding style preferences (e.g., "prefers controller-based APIs", "dislikes over-commenting")
-- Architectural preferences (e.g., "follows clean architecture", "prefers one type per file")
-- Trade-off priorities (e.g., "readability over brevity", "explicit over clever")
-- Project conventions absorbed from past decisions and context
-- Preferences stated directly by the user vs. inferred from behavior
-
-**How it works:**
-Entries here represent beliefs about the user with provenance — the agent knows whether a preference was stated explicitly or inferred. Stated preferences carry higher trust weight and don't decay over time.
-
-This is the difference between a tool that follows instructions and an assistant that knows you.
 
 ## Memory File Locations
 
@@ -141,10 +126,12 @@ This shows 5 lines after (-A) and before (-B) the match.
 
 ### Layer 3: Read Full Entry
 
-Memory entries are delimited by `---` lines. To read a complete entry:
+Memory entries are delimited by `---` lines. Read the entry containing the
+matched line, stopping at its next delimiter. Replace `42` with the matched
+line number and `FILE.md` with the matched file:
 
 ```bash
-awk '/^---$/ && !done { start=NR+1; done=1 } NR>=start' .agent-harness/memory/FILE.md
+awk -v target=42 '/^---$/ { if (selected) exit; entry=""; next } { entry=entry $0 "\n"; if (NR == target) selected=1 } END { if (selected) printf "%s", entry }' .agent-harness/memory/FILE.md
 ```
 
 ## Quick Search Examples
@@ -167,7 +154,7 @@ rg -in "error handling" .agent-harness/memory/
 ## Workflow Summary
 
 1. **Start with rg** - Never read files without first using rg to locate relevant entries
-2. **Filter by category** - Use `rg .agent-harness/memory/CATEGORY.md` to narrow search
+2. **Filter by category** - Use `rg -n "search term" .agent-harness/memory/CATEGORY.md` to narrow search
 3. **Read context first** - Get lines around match before loading full entry
 4. **Load full entry only when needed** - Parse between `---` delimiters
 
@@ -195,14 +182,6 @@ Date: YYYY-MM-DD
 - `path/to/file`
 - `command --flag`
 ```
-
-## Token Efficiency Rules
-
-1. ALWAYS start with `rg` (Layer 1), never read files blindly
-2. Filter by specific category files when you know the domain
-3. Use context reads before loading full entries
-4. Load full entries only for selected matches
-5. This workflow saves tokens by never loading more than needed
 
 ## Consolidation
 

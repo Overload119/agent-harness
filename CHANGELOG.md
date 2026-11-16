@@ -3,6 +3,45 @@
 User-visible changes and upgrade notes for tagged releases. Commits on `main`
 can include unreleased work; pushing a commit does not automatically make a release.
 
+## [0.3.0](https://github.com/Overload119/agent-harness/releases/tag/v0.3.0) — 2026-11-15
+
+### Added
+
+- Self-contained `explain-inline` skill: a reusable explanation component
+  library (Lifecycle, CodeMap, CodeTour, Mermaid, Chart, Grid/Stat, Steps,
+  Callout) with guidance on when to use each, and an embedded offline Pele
+  1.13.0 Mermaid renderer. Lifecycle and CodeMap draw directed arrows between
+  parts; Lifecycle animates a marker along each active step. Pages follow BB's
+  live theme. Changed lines use BB's Diff tab or a `diff` code fence; the library
+  has no Diff component.
+- Portable `premortem` and `r-teach` skills, including source-verified questions,
+  visual answer reveals, and optional reminders requiring an explicit request.
+
+### Fixed
+
+- Remove development history and assumed tools from reusable skill instructions.
+- Correct memory lookup commands, default-branch handling, and GitHub CLI guidance.
+  Preserve unrelated changes when committing, use available browser tools for
+  verification, and keep teaching answers hidden until the reveal step.
+
+### Upgrade
+
+- Existing `@main` installs: run `bb plugin update agent-harness`. The plugin ID,
+  settings and storage formats are unchanged. No setup rerun is required.
+- BB >=0.47 and Plugin SDK >=0.6.75 remain required. The explanation extraction
+  recipe uses Bun; generated pages work offline in a modern browser with
+  `DecompressionStream`. Mermaid rendering is embedded in the skill.
+- Exact tags remain pinned; `@^0.2.0` does not include this minor release.
+
+### Verification
+
+All 75 tests (892 assertions), plugin typechecking, the plugin build and an
+isolated production-only build passed. Offline browser checks covered playback,
+responsive layouts and reduced motion. `bb plugin types --check .` still reports
+the existing SDK pin drift (repository 0.6.75; validating host 0.6.132); SDK and
+host-shim dependency pins were not changed in this release. No live plugin
+activation or live schedule changes were performed.
+
 ## [0.2.0](https://github.com/Overload119/agent-harness/releases/tag/v0.2.0) — 2026-11-07
 
 First tagged release of the combined Agent Harness BB plugin.

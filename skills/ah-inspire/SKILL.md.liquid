@@ -3,8 +3,6 @@ name: ah-inspire
 description: Analyze how other codebases solve problems using DeepWiki and GitHub so the user can study and adapt implementations. Uses DeepWiki for architecture/code understanding, GitHub CLI for cloning and deep exploration, and Exa for supplementary web search.
 ---
 
-Use `--yes` flag with gh commands to skip interactive authentication prompts when running non-interactively.
-
 Analyze how other codebases solve problems using DeepWiki and GitHub.
 
 Your job is to give the user instant knowledge of any public GitHub repo using DeepWiki, surface concrete implementations they can study, and optionally clone repos for deeper exploration.
@@ -17,6 +15,11 @@ Your job is to give the user instant knowledge of any public GitHub repo using D
 - User needs external knowledge to inform their implementation
 
 ## Tools
+
+This workflow requires GitHub CLI, DeepWiki, and Exa access. Check available
+commands and tool schemas before using them. If a capability is missing, report
+the limitation; do not invent a tool call or claim that installing this skill
+provides the service.
 
 ### DeepWiki (Primary)
 Use DeepWiki to instantly query any public GitHub repo:
@@ -78,14 +81,6 @@ Use Exa to find public documentation, blog posts, articles, and discussions:
 - Best for: tutorials, architecture guides, pattern explanations, recent implementations
 - Complements gh by finding non-code resources
 
-```
-exa_web_search_exa(
-  query="<problem> implementation in <language> site:github.com OR site:dev.to OR site:medium.com",
-  numResults=5,
-  freshness="year"
-)
-```
-
 **When to use Exa:**
 - User wants to understand concepts/patterns (not specific repo)
 - Need recent implementations not yet well-indexed
@@ -105,24 +100,10 @@ Ask exactly one focused question if needed, otherwise infer:
 
 ### Step 2: Discover Resources in Parallel
 
-**Run gh and Exa simultaneously** - they serve different purposes and complement each other:
-
-Launch a subagent to run parallel discovery while you continue planning:
-```
-# Use subagent for parallel discovery
-task(subagent_type="explore", prompt="Run the following searches in parallel for '<user goal>':
-
-1. gh search repos (code):
-   - 'agent orchestration'
-   - 'multi-agent framework'
-   - 'task planning AI'
-
-2. exa_web_search_exa (docs/articles):
-   - query='<problem> patterns implementation site:github.com OR site:dev.to OR site:medium.com'
-   - numResults=5, freshness='year'
-
-Return all results with source (gh vs exa) clearly labeled.")
-```
+Skip discovery when the user already named the repository. Otherwise search
+GitHub and Exa for the actual user problem through their available interfaces.
+Independent searches can run in parallel. Use a subagent only when delegation
+is authorized and the host provides a supported API.
 
 **GitHub (gh)** → For concrete code implementations, specific framework examples
 **Exa** → For documentation, tutorials, architecture discussions, pattern explanations
@@ -166,14 +147,6 @@ Format as a scannable summary:
 3. **Get more details** - Ask a follow-up question about <specific aspect>
 4. **Adapt to codebase** - Apply learnings to current project
 ```
-
-### Step 5: Offer Deep Dive (always)
-
-After presenting DeepWiki findings, always offer to:
-
-1. **Clone for deep exploration**: `gh repo clone owner/repo /tmp/.agent-harness/repos/<repo-name>`
-2. **Navigate the code**: Use gh to explore specific files
-3. **Extract relevant code**: Copy sections to `.agent-harness/inspirations/`
 
 ## Cloning Repos
 
@@ -219,12 +192,9 @@ gh search code "useEffect" --repo facebook/react --limit 5
 
 ## Rules
 
-- **Run gh and Exa in parallel**: They serve different purposes - gh for code, Exa for docs/articles
 - **Use simple keywords for gh**: 2-3 word phrases work best; avoid full sentences
 - **Validate repos before DeepWiki**: Always run `gh repo view` to confirm a repo exists before querying DeepWiki
-- **Use subagents for parallel discovery**: Run gh and Exa simultaneously via subagent
 - **Be practical**: 2-3 well-analyzed repos is better than 10 shallow results
-- **Offer cloning**: When an implementation looks promising, offer to clone for deeper analysis
 - **No fabrication**: Never guess code or architecture. Use actual findings from DeepWiki/gh.
 - **License awareness**: Flag if something is GPL or has other restrictions.
 
@@ -235,9 +205,3 @@ After analysis, return:
 - Question/goal restatement
 - Key findings from DeepWiki (quoted or summarized)
 - Recommended next step
-- "What next?" choices:
-  1. Clone option # for deep exploration
-  2. Compare with another repo
-  3. Ask a follow-up question
-  4. Extract relevant code to harness
-  5. Adapt to current codebase

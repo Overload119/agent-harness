@@ -40,7 +40,7 @@ Commit rules:
 - Do not assume generated files should be committed unless the repo clearly tracks them.
 - Always write commit titles in Conventional Commit format such as `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `build:`, or `chore:`.
 - Keep the proposal actionable: commit groups, rationale, commit titles, file lists, and approval step.
-- After presenting a commit plan, ensure ALL modified and new files are accounted for in the plan - there should be no unstaged changes left behind after approval. If unrelated changes exist, either include them with an explanation or explicitly note they should be discarded.
+- Account for modified and new files in the proposal. Leave unrelated changes untouched and list them under Leave unstaged.
 
 Output format:
 
